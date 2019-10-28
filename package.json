@@ -1,0 +1,34 @@
+{
+  "name": "sync-jira-subtask-to-gh-issues-action",
+  "version": "0.1.0",
+  "description": "A github Action to synchronize Github Issues and Jira subtasks",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint index.js",
+    "package": "ncc build index.js -o dist",
+    "test": "eslint index.js && jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action"
+  },
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "JavaScript"
+  ],
+  "author": "GitHub",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues"
+  },
+  "homepage": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action#readme",
+  "dependencies": {
+    "@actions/core": "^1.1.1"
+  },
+  "devDependencies": {
+    "@zeit/ncc": "^0.20.5",
+    "eslint": "^6.3.0",
+    "jest": "^24.9.0"
+  }
+}
