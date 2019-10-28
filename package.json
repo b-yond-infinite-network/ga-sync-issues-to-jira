@@ -24,7 +24,8 @@
   },
   "homepage": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action#readme",
   "dependencies": {
-    "@actions/core": "^1.1.1"
+    "@actions/core": "^1.1.1",
+    "@actions/github": "^1.0.0"
   },
   "devDependencies": {
     "@zeit/ncc": "^0.20.5",
