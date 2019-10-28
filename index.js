@@ -1,16 +1,17 @@
 const core = require('@actions/core');
-const wait = require('./wait');
+// const wait = require('./wait');
+const github = require('@actions/github');
 
 
 // most @actions toolkit packages have async methods
 async function run() {
   try { 
-    const ms = core.getInput('milliseconds');
-    console.log(`Waiting ${ms} milliseconds ...`)
+    const jiraPrefix = core.getInput('jira-prefix');
+    console.log(`Filtering using ${jiraPrefix} project in JIRA...`)
 
-    core.debug((new Date()).toTimeString())
-    wait(parseInt(ms));
-    core.debug((new Date()).toTimeString())
+    // Get the JSON webhook payload for the event that triggered the workflow
+    const payload = JSON.stringify(github.context.payload, undefined, 2)
+    console.log(`The event payload is: ${payload}`);
 
     core.setOutput('time', new Date().toTimeString());
   } 

@@ -5,6 +5,20 @@
   <a href="https://github.com/"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-local/badge.svg"></a>
 </p>
 
+## Inputs
+
+### `who-to-greet`
+
+**Required** The name of the person to greet. Default `"World"`.
+
+## Outputs
+
+### `time`
+
+The time we greeted you.
+
+## Example usage
+
 # Using in your repo
 ## Usage
 
@@ -13,7 +27,7 @@ Add the following action description in your `./github/workflows` directory
 ```yaml
 uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@v1
 with:
-  milliseconds: 1000
+  jira-prefix: BIP
 ```
 
 See the [actions tab](https://github.com/actions/javascript-action/actions) for runs of this action! :rocket:

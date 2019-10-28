@@ -1,13 +1,15 @@
 name: 'Wait'
 description: 'Wait a designated number of milliseconds'
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  jira-prefix:
+    description: 'the prefix used by JIRA for the project to attache the stories to'
     required: true
-    default: '1000'
-outputs:
-  time: # output will be available to future steps 
-    description: 'The message to output'
+    default: 'BIP'
+outputs: # output will be available to future steps
+  status:
+    description: 'The status of the sync'
+  time:
+    description: 'when was the sync finished'
 runs:
   using: 'node12'
   main: 'dist/index.js'
