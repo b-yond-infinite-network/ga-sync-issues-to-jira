@@ -1,9 +1,9 @@
 #### A github Action to synchronize Github Issues and Jira subtasks
 
 
-<p align="center">
-  <a href="https://github.com/actions/javascript-action/workflows/test-local"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-issuetrigger/badge.svg"></a>
-  <a href="https://github.com/actions/javascript-action/workflows/test-issuetrigger"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-issuetrigger/badge.svg"></a>
+<p align="left">
+  <a href="https://github.com/actions/javascript-action/workflows/test-local"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/workflows/test-local/badge.svg"></a>
+  <a href="https://github.com/actions/javascript-action/workflows/test-issuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/workflows/test-issuetrigger/badge.svg"></a>
 </p>
 
 ## Inputs
