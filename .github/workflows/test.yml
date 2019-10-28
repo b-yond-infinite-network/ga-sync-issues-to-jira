@@ -17,4 +17,3 @@ jobs:
     - uses: ./
       with:
         jira-prefix: BLA
-    - run: npm run package
