@@ -1,0 +1,14 @@
+name: test-issuetrigger
+
+on:
+  issues:
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@master
+        with:
+          jira-prefix: BLA
