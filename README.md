@@ -2,7 +2,8 @@
 
 
 <p align="center">
-  <a href="https://github.com/"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-local/badge.svg"></a>
+  <a href="https://github.com/actions/javascript-action/workflows/test-local"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-issuetrigger/badge.svg"></a>
+  <a href="https://github.com/actions/javascript-action/workflows/test-issuetrigger"><img alt="GitHub Actions status" src="https://github.com/actions/javascript-action/workflows/test-issuetrigger/badge.svg"></a>
 </p>
 
 ## Inputs
