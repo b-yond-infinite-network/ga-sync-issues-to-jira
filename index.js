@@ -15,6 +15,7 @@ async function run() {
     console.log(`The prefix is: ${jiraPrefix}`);
 
     core.setOutput('status', payload);
+    // core.setOutput('time', new Date().toTimeString());
     core.setOutput('time', new Date().toTimeString());
   } 
   catch (error) {
