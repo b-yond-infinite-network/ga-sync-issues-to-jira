@@ -13,6 +13,7 @@ async function run() {
     const payload = JSON.stringify(github.context.payload, undefined, 2)
     console.log(`The event payload is: ${payload}`);
 
+    core.setOutput('status', payload);
     core.setOutput('time', new Date().toTimeString());
   } 
   catch (error) {
