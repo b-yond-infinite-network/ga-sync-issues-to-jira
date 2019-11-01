@@ -19167,6 +19167,7 @@ async function handleIssues( ) {
             changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
         } )
 
+        console.log( `=found that many labels with keys ${ changeEvent.labels }` )
         if( !changeEvent.labels
             ||  changeEvent.labels.length() < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
