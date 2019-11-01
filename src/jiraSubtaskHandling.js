@@ -35,21 +35,21 @@ async function handleSubtask( issueChanges ) {
 
         const isSubtask = issuetypeFound.subtask
 
-        issueChanges.stories.forEach( currentStoryID => {
-            console.log( `--- currently attaching to story: ${ JSON.stringify( currentStoryID ) }` )
-            if( !currentStoryID.name.startsWith( projectKey ) )
+        issueChanges.stories.forEach( currentStory => {
+            console.log( `--- currently attaching to story: ${ currentStory.name }` )
+            if( !currentStory.name.startsWith( projectKey ) )
                 //skipping story not in our project
                 return
 
-            const subtaskFound = parseStorySubtasksToFindGHIssue( jiraSession, currentStoryID, issueChanges.details[ 'title' ] )
-            if( !subtaskFound ){
-                //there's no such subtask,
-                // we need to create one attached to the parent Story
-                createJiraIssueFromGHIssue( jiraSession, projectKey, currentStoryID, issueTypeName, isSubtask, issueChanges.details )
-                return
+            if( isSubtask ){
+                const subtaskFound = parseStorySubtasksToFindGHIssue( jiraSession, currentStory, issueChanges.details[ 'title' ] )
+                if( !subtaskFound ){
+                    //there's no such subtask,
+                    // we need to create one attached to the parent Story
+                    createJiraIssueFromGHIssue( jiraSession, projectKey, currentStory, issueTypeName, isSubtask, issueChanges.details )
+                    return
+                }
             }
-
-
         } )
 
     } catch ( error ) {
