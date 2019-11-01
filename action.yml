@@ -1,15 +1,33 @@
 name: 'Wait'
 description: 'Wait a designated number of milliseconds'
 inputs:
-  jira-prefix:
-    description: 'the prefix used by JIRA for the project to attache the stories to'
+  JIRA_BASEURL:
+    description: 'url to connect to Jira'
     required: true
-    default: 'BIP'
+    default: 'http://localhost'
+  JIRA_USEREMAIL:
+    description: 'user email/login address to use the token of'
+    required: true
+    default: 'BLANK'
+  JIRA_APITOKEN:
+    description: 'token to use to connect to Jira'
+    required: true
+    default: 'http://localhost'
+  JIRA_PROJECTKEY:
+    description: 'the key (prefix) used by Jira for the project'
+    required: true
+    default: 'BLA'
+  JIRA_ISSUETYPE_NAME:
+    description: 'the issue type to use to track the Github Issues'
+    required: true
+    default: 'Sub-task'
+
 outputs: # output will be available to future steps
   status:
     description: 'The status of the sync'
   time:
     description: 'when was the sync finished'
+
 runs:
   using: 'node12'
   main: 'dist/index.js'
