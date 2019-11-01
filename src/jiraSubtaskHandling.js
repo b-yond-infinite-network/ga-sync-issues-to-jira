@@ -58,15 +58,17 @@ async function handleSubtask( issueChanges ) {
     }
 
     async function findIssueTypeRequested( jiraSession, projectKey, issuetypeToFind ){
-        const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey } )
+        const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey, issuetypeNames: issuetypeToFind } )
         console.log( `-- found data on issue types: ${ JSON.stringify( foundData ) }` )
-        if( !foundData ||
-            !foundData.issuetypes ||
-            foundData.issuetypes.length == 0 )
+        if( !foundData
+            || !foundData.projects
+            || foundData.projects.length === 0
+            || !foundData.projects[ 0 ].issuetypes
+            || !foundData.projects[ 0 ].issuetypes.length === 0 )
             return null
 
         console.log( `-- found those issue types: ${ JSON.stringify( foundData.issuetypes ) }` )
-        return foundData.issuetypes.find( currentIssueType => currentIssueType.name === issuetypeToFind )
+        return foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name === issuetypeToFind )
     }
 
     async function parseStorySubtasksToFindGHIssue( jiraSession, storyKey, summaryToFind ){
