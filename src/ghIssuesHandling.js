@@ -1,5 +1,4 @@
 const core = require('@actions/core')
-// const { GitHub } = require('@actions/github')
 const github = require('@actions/github');
 
 async function handleIssues( ) {
@@ -9,36 +8,43 @@ async function handleIssues( ) {
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
-        const payload = github.context.payload
-        console.log( `==> payload ${ JSON.stringify(github.context.payload, undefined, 2) }`)
+        const changeEvent = github.context.payload
+        console.log( `==> payload ${ JSON.stringify( changeEvent, undefined, 2) }`)
 
-        if( !payload.issue )
+        if( !changeEvent.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
 
-        if( actionPossible.indexOf( payload.action ) === -1 )
-            throw Error( `The Github Issue event ${ payload.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
+        if( actionPossible.indexOf( changeEvent.action ) === -1 )
+            throw Error( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
 
-        if( actionToConsider.indexOf( payload.action ) === -1 ){
-            console.log( `==> action skipped for event ${ payload.action }` )
+        if( actionToConsider.indexOf( changeEvent.action ) === -1 ){
+            console.log( `==> action skipped for event ${ changeEvent.action }` )
             return null
         }
 
         let changedValues = { }
-        Object.entries( payload.changes ).forEach( currentChangedAttribute => {
-            changedValues[ currentChangedAttribute ] = payload.issue[ currentChangedAttribute ]
+        Object.entries( changeEvent.changes ).forEach( currentChangedAttribute => {
+            changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
         } )
-        const jiraIDS = payload.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
+
+        if( !changeEvent.labels
+            ||  changeEvent.labels.length() < 1 ){
+            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
+            return null
+        }
+
+        const jiraIDS = changeEvent.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
 
         if( jiraIDS.length() < 1 ){
-            console.log( `==> action skipped - no jira issue key labels found ` )
+            console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
             return null
         }
 
         return {
-            event:          payload.action,
+            event:          changeEvent.action,
             stories:        jiraIDS,
             changes:        changedValues,
-            details:        payload.issue
+            details:        changeEvent.issue
         }
 
     } catch (error) {
