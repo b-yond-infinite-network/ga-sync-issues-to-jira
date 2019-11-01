@@ -27,15 +27,16 @@ async function handleIssues( ) {
             changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
         } )
 
-        console.log( `=found that many labels with keys ${ changeEvent.labels }` )
-        if( !changeEvent.labels
-            ||  changeEvent.labels.length() < 1 ){
+        const issueDetails = changeEvent.issue
+        console.log( `=found that many labels with keys ${ issueDetails.labels }` )
+        if( !issueDetails.labels
+            ||  issueDetails.labels.length() < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
             return null
         }
 
         console.log( `=rolling the labels` )
-        const jiraIDS = changeEvent.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
+        const jiraIDS = issueDetails.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
 
         console.log( `=found that many labels with keys ${ jiraIDS }` )
         if( jiraIDS.length() < 1 ){
@@ -47,7 +48,7 @@ async function handleIssues( ) {
             event:      changeEvent.action,
             stories:    jiraIDS,
             changes:    changedValues,
-            details:    changeEvent.issue
+            details:    issueDetails
         }
 
     } catch( error ) {
