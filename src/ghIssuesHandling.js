@@ -33,21 +33,23 @@ async function handleIssues( ) {
             return null
         }
 
+        console.log( `=rolling the labels` )
         const jiraIDS = changeEvent.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
 
+        console.log( `=found that many labels with keys ${ jiraIDS }` )
         if( jiraIDS.length() < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
             return null
         }
 
         return {
-            event:          changeEvent.action,
-            stories:        jiraIDS,
-            changes:        changedValues,
-            details:        changeEvent.issue
+            event:      changeEvent.action,
+            stories:    jiraIDS,
+            changes:    changedValues,
+            details:    changeEvent.issue
         }
 
-    } catch (error) {
+    } catch( error ) {
         core.setFailed( error.message )
     }
 }
