@@ -2,9 +2,9 @@ name: 'Wait'
 description: 'Wait a designated number of milliseconds'
 inputs:
   JIRA_BASEURL:
-    description: 'url to connect to Jira'
+    description: 'hostname to connect to Jira (do not add https://)'
     required: true
-    default: 'http://localhost'
+    default: 'localhost'
   JIRA_USEREMAIL:
     description: 'user email/login address to use the token of'
     required: true
