@@ -4540,10 +4540,10 @@ async function handleSubtask( issueChanges ) {
         }
 
         const projectKey = core.getInput('JIRA_PROJECTKEY')
-        console.log( `The project key is: ${ projectKey }` )
+        console.log( `-- we are pushed to project with key ${ projectKey }` )
 
         const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
-        console.log( `The issue type name to use is: ${ issueTypeName }` )
+        console.log( `-- using issue type ${ issueTypeName }` )
 
         //Let's login to JIRA first
         const jiraSession = new JiraClient({
@@ -4554,13 +4554,13 @@ async function handleSubtask( issueChanges ) {
             } } )
 
         const issuetypeFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        console.log( `The issue types found: ${ JSON.stringify( issuetypeFound ) }` )
         if( !issuetypeFound )
             throw `The issue type name specified does not exist or is ambiguous`
 
         const isSubtask = issuetypeFound.subtask
 
         issueChanges.stories.forEach( currentStoryID => {
+            console.log( `--- currently attaching to story: ${ JSON.stringify( currentStoryID ) }` )
             if( !currentStoryID.startsWith( projectKey ) )
                 //skipping story not in our project
                 return
