@@ -4545,7 +4545,6 @@ async function handleSubtask( issueChanges ) {
         const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
         console.log( `The issue type name to use is: ${ issueTypeName }` )
 
-        console.log( `The BaseURL to us is: ${ JSON.stringify( core.getInput('JIRA_BASEURL') ) }`)
         //Let's login to JIRA first
         const jiraSession = new JiraClient({
             host: core.getInput('JIRA_BASEURL'),
@@ -4555,10 +4554,10 @@ async function handleSubtask( issueChanges ) {
             } } )
 
         const typesFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        console.log( `The issue type found: ${ typesFound }` )
+        console.log( `The issue type found: ${ JSON.stringify( typesFound ) }` )
         if( !typesFound || !typesFound.issuetypes
-            || typesFound.issuetypes.length() === 0
-            || typesFound.issuetypes.length() > 1 )
+            || typesFound.issuetypes.length === 0
+            || typesFound.issuetypes.length > 1 )
             throw `The issue type name specified does not exist or is ambiguous`
 
         const isSubtask = typesFound.issuetypes[ 0 ].subtask
@@ -19150,7 +19149,6 @@ async function handleIssues( ) {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
         const changeEvent = github.context.payload
-        console.log( `==> payload ${ JSON.stringify( changeEvent, undefined, 2) }`)
 
         if( !changeEvent.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )

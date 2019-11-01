@@ -21,7 +21,6 @@ async function handleSubtask( issueChanges ) {
         const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
         console.log( `The issue type name to use is: ${ issueTypeName }` )
 
-        console.log( `The BaseURL to us is: ${ JSON.stringify( core.getInput('JIRA_BASEURL') ) }`)
         //Let's login to JIRA first
         const jiraSession = new JiraClient({
             host: core.getInput('JIRA_BASEURL'),
@@ -31,10 +30,10 @@ async function handleSubtask( issueChanges ) {
             } } )
 
         const typesFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        console.log( `The issue type found: ${ typesFound }` )
+        console.log( `The issue type found: ${ JSON.stringify( typesFound ) }` )
         if( !typesFound || !typesFound.issuetypes
-            || typesFound.issuetypes.length() === 0
-            || typesFound.issuetypes.length() > 1 )
+            || typesFound.issuetypes.length === 0
+            || typesFound.issuetypes.length > 1 )
             throw `The issue type name specified does not exist or is ambiguous`
 
         const isSubtask = typesFound.issuetypes[ 0 ].subtask
