@@ -4559,21 +4559,21 @@ async function handleSubtask( issueChanges ) {
 
         const isSubtask = issuetypeFound.subtask
 
-        issueChanges.stories.forEach( currentStoryID => {
-            console.log( `--- currently attaching to story: ${ JSON.stringify( currentStoryID ) }` )
-            if( !currentStoryID.startsWith( projectKey ) )
+        issueChanges.stories.forEach( currentStory => {
+            console.log( `--- currently attaching to story: ${ currentStory.name }` )
+            if( !currentStory.name.startsWith( projectKey ) )
                 //skipping story not in our project
                 return
 
-            const subtaskFound = parseStorySubtasksToFindGHIssue( jiraSession, currentStoryID, issueChanges.details[ 'title' ] )
-            if( !subtaskFound ){
-                //there's no such subtask,
-                // we need to create one attached to the parent Story
-                createJiraIssueFromGHIssue( jiraSession, projectKey, currentStoryID, issueTypeName, isSubtask, issueChanges.details )
-                return
+            if( isSubtask ){
+                const subtaskFound = parseStorySubtasksToFindGHIssue( jiraSession, currentStory, issueChanges.details[ 'title' ] )
+                if( !subtaskFound ){
+                    //there's no such subtask,
+                    // we need to create one attached to the parent Story
+                    createJiraIssueFromGHIssue( jiraSession, projectKey, currentStory, issueTypeName, isSubtask, issueChanges.details )
+                    return
+                }
             }
-
-
         } )
 
     } catch ( error ) {
@@ -19183,7 +19183,7 @@ async function handleIssues( ) {
 
         const jiraIDS = issueDetails.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
 
-        console.log( `=found that many labels with keys ${ JSON.stringify( jiraIDS ) }` )
+        console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
         if( jiraIDS.length < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
             return null

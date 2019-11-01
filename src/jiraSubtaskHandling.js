@@ -37,7 +37,7 @@ async function handleSubtask( issueChanges ) {
 
         issueChanges.stories.forEach( currentStoryID => {
             console.log( `--- currently attaching to story: ${ JSON.stringify( currentStoryID ) }` )
-            if( !currentStoryID.startsWith( projectKey ) )
+            if( !currentStoryID.name.startsWith( projectKey ) )
                 //skipping story not in our project
                 return
 
