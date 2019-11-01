@@ -8,6 +8,9 @@ async function handleIssues( ) {
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
+        console.log( `==> Token ${ core.getInput('GITHUB_TOKEN') }`)
+        console.log( `==> return of require ${ require('@actions/github') }`)
+
         console.log( `==> context and all  ${ GitHub }` )
 
         const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
