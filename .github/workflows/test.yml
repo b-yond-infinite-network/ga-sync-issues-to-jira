@@ -16,4 +16,4 @@ jobs:
     - run: npm test
     - uses: ./
       with:
-        jira-prefix: BLA
+        JIRA_PROJECTKEY: TEST
