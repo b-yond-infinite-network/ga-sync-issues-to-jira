@@ -1,5 +1,6 @@
 const core = require('@actions/core')
-const { GitHub } = require('@actions/github')
+// const { GitHub } = require('@actions/github')
+const github = require('@actions/github');
 
 async function handleIssues( ) {
     const actionPossible = [ "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
@@ -8,12 +9,11 @@ async function handleIssues( ) {
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
-        const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
-        console.log( `==> Token ${ core.getInput('GITHUB_TOKEN') }`)
-        console.log( `==> return of Github() ${ githubSession }`)
+        const payload = JSON.stringify(github.context.payload, undefined, 2)
 
-        console.log( `==> session  ${ JSON.stringify( githubSession.context ) }` )
-        const payload       = JSON.stringify( githubSession.context.payload, undefined, 2 )
+        // const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
+        console.log( `==> Github object ${ github }`)
+        console.log( `==> paylod ${ payload }`)
 
         if( !payload.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
