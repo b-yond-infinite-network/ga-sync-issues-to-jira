@@ -7,7 +7,7 @@ async function run() {
     const issueEventTriggered = await handleIssues( )
 
     if( !issueEventTriggered ){
-      console.log( 'This issue change event doesn\'t attach to any Jira subtask' )
+      console.log( 'Ending Action' )
       return
     }
 

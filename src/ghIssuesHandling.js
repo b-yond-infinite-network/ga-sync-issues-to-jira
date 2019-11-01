@@ -13,7 +13,7 @@ async function handleIssues( ) {
 
         // const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
         console.log( `==> Github object ${ github }`)
-        console.log( `==> paylod ${ payload }`)
+        console.log( `==> payload ${ payload }`)
 
         if( !payload.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
