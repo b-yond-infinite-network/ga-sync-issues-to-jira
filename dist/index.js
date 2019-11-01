@@ -19143,24 +19143,22 @@ const core = __webpack_require__(470)
 const github = __webpack_require__(469);
 
 async function handleIssues( ) {
-    const actionPossible = [ "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
-    const actionToConsider = [ "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
+    const actionPossible = [ "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+    const actionToConsider = [ "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
 
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
         const payload = github.context.payload
-
-        // const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
         console.log( `==> payload ${ JSON.stringify(github.context.payload, undefined, 2) }`)
 
         if( !payload.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
 
-        if( actionPossible.indexOf( payload.action ) == -1 )
+        if( actionPossible.indexOf( payload.action ) === -1 )
             throw Error( `The Github Issue event ${ payload.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
 
-        if( actionToConsider.indexOf( payload.action ) == -1 ){
+        if( actionToConsider.indexOf( payload.action ) === -1 ){
             console.log( `==> action skipped for event ${ payload.action }` )
             return null
         }
@@ -19171,8 +19169,10 @@ async function handleIssues( ) {
         } )
         const jiraIDS = payload.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
 
-        if( jiraIDS.length() < 1 )
+        if( jiraIDS.length() < 1 ){
+            console.log( `==> action skipped - no jira issue key labels found ` )
             return null
+        }
 
         return {
             event:          payload.action,
