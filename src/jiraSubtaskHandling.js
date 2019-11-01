@@ -21,7 +21,7 @@ async function handleSubtask( issueChanges ) {
         const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
         console.log( `The issue type name to use is: ${ issueTypeName }` )
 
-        console.log( `The BaseURL to us is: ${ core.getInput('JIRA_BASEURL') }`)
+        console.log( `The BaseURL to us is: ${ JSON.stringify( core.getInput('JIRA_BASEURL') ) }`)
         //Let's login to JIRA first
         const jiraSession = new JiraClient({
             host: core.getInput('JIRA_BASEURL'),
