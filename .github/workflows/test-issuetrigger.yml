@@ -11,4 +11,7 @@ jobs:
     steps:
       - uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@master
         with:
-          JIRA_PROJECTKEY: TEST
+          JIRA_PROJECTKEY:  TES
+          JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
+          JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
+          JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
