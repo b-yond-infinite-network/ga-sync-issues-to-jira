@@ -21,11 +21,13 @@ async function handleIssues( ) {
             return null
         }
 
+        console.log( '-- retrieving all changes' )
         let changedValues = { }
         Object.entries( changeEvent.changes ).forEach( currentChangedAttribute => {
             changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
         } )
 
+        console.log( '-- retrieving all labels' )
         const issueDetails = changeEvent.issue
         if( !issueDetails.labels
             ||  issueDetails.labels.length < 1 ){
