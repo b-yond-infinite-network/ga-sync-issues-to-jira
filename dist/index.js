@@ -19146,9 +19146,12 @@ async function handleIssues( ) {
     const actionToConsider = [ "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
 
     try {
-        const jiraPrefix = core.getInput('jira-prefix')
+        const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
+
+        console.log( `==> context and all  ${ GitHub }` )
 
         const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
+        console.log( `==> session  ${ githubSession }` )
         const payload       = JSON.stringify( githubSession.context.payload, undefined, 2 )
 
         if( !payload.issue )
@@ -19166,7 +19169,7 @@ async function handleIssues( ) {
         Object.entries( payload.changes ).forEach( currentChangedAttribute => {
             changedValues[ currentChangedAttribute ] = payload.issue[ currentChangedAttribute ]
         } )
-        const jiraIDS = payload.labels.filter( currentLabel => currentLabel.startsWith( jiraPrefix ) )
+        const jiraIDS = payload.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
 
         if( jiraIDS.length() < 1 )
             return null
