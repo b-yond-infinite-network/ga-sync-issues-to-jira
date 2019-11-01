@@ -30,13 +30,12 @@ async function handleSubtask( issueChanges ) {
             } } )
 
         const typesFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        console.log( `The issue type found: ${ JSON.stringify( typesFound ) }` )
-        if( !typesFound || !typesFound.issuetypes
-            || typesFound.issuetypes.length === 0
-            || typesFound.issuetypes.length > 1 )
+        console.log( `The issue types found: ${ JSON.stringify( typesFound ) }` )
+        if( !typesFound ||
+            !typesFound[ 0 ] )
             throw `The issue type name specified does not exist or is ambiguous`
 
-        const isSubtask = typesFound.issuetypes[ 0 ].subtask
+        const isSubtask = typesFound[ 0 ].subtask
 
         issueChanges.stories.forEach( currentStoryID => {
             if( !currentStoryID.startsWith( projectKey ) )
@@ -59,9 +58,13 @@ async function handleSubtask( issueChanges ) {
     }
 
     async function findIssueTypeRequested( jiraSession, projectKey, issuetypeToFind ){
-        return await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey } )
-            // , issuetypeNames: issuetypeToFind
-        // })
+        const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey, issuetypeNames: issuetypeToFind } )
+        if( !foundData ||
+            !foundData.issuetypes ||
+            foundData.issuetypes.length == 0 )
+            return null
+
+        return foundData.issuetypes
     }
 
     async function parseStorySubtasksToFindGHIssue( jiraSession, storyKey, summaryToFind ){
