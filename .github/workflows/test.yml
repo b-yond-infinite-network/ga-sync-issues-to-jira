@@ -17,3 +17,4 @@ jobs:
     - uses: ./
       with:
         JIRA_PROJECTKEY: TEST
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
