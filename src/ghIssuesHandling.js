@@ -37,7 +37,7 @@ async function handleIssues( ) {
 
         const jiraIDS = issueDetails.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
 
-        console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
+        // console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
         if( jiraIDS.length < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
             return null

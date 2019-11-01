@@ -70,6 +70,7 @@ async function handleSubtask( issueChanges ) {
 
     async function parseStorySubtasksToFindGHIssue( jiraSession, storyKey, summaryToFind ){
         const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: 'sub-tasks' })
+        console.log( `--- found issue infos: ${ JSON.stringify( parentIssue ) }` )
         if( !parentIssue[ "sub-tasks" ] )
             return null
 
