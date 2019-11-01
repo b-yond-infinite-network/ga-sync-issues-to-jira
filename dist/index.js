@@ -19174,7 +19174,7 @@ async function handleIssues( ) {
         }
 
         console.log( `=rolling the labels` )
-        const jiraIDS = changeEvent.labels.filter( currentLabel => currentLabel.startsWith( jiraProjectKey ) )
+        const jiraIDS = changeEvent.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
 
         console.log( `=found that many labels with keys ${ jiraIDS }` )
         if( jiraIDS.length() < 1 ){
