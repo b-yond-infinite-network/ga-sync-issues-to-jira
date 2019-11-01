@@ -9,11 +9,10 @@ async function handleIssues( ) {
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
 
-        const payload = JSON.stringify(github.context.payload, undefined, 2)
+        const payload = github.context.payload
 
         // const githubSession = new GitHub( core.getInput('GITHUB_TOKEN') )
-        console.log( `==> Github object ${ github }`)
-        console.log( `==> payload ${ payload }`)
+        console.log( `==> payload ${ JSON.stringify(github.context.payload, undefined, 2) }`)
 
         if( !payload.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
