@@ -11,4 +11,4 @@ jobs:
     steps:
       - uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@master
         with:
-          jira-prefix: BLA
+          JIRA_PROJECTKEY: TEST
