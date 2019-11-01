@@ -4559,7 +4559,7 @@ async function handleSubtask( issueChanges ) {
 
         const isSubtask = issuetypeFound.subtask
 
-         for (const currentStory of issueChanges.stories) {
+         for( const currentStory of issueChanges.stories ) {
             console.log( `--- currently attaching to story: ${ currentStory.name }` )
             if( !currentStory.name.startsWith( projectKey ) )
                 //skipping story not in our project
@@ -4593,6 +4593,7 @@ async function handleSubtask( issueChanges ) {
     }
 
     async function findGHIssueInSubtasks( jiraSession, storyKey, summaryToFind ){
+        console.log( `--- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
         const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: 'sub-tasks' })
         console.log( `--- found issue infos: ${ JSON.stringify( parentIssue ) }` )
         if( !parentIssue[ "sub-tasks" ] )
