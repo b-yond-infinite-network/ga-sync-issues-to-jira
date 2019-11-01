@@ -4553,13 +4553,12 @@ async function handleSubtask( issueChanges ) {
                 api_token: core.getInput('JIRA_APITOKEN'),
             } } )
 
-        const typesFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        console.log( `The issue types found: ${ JSON.stringify( typesFound ) }` )
-        if( !typesFound ||
-            !typesFound[ 0 ] )
+        const issuetypeFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
+        console.log( `The issue types found: ${ JSON.stringify( issuetypeFound ) }` )
+        if( !issuetypeFound )
             throw `The issue type name specified does not exist or is ambiguous`
 
-        const isSubtask = typesFound[ 0 ].subtask
+        const isSubtask = issuetypeFound.subtask
 
         issueChanges.stories.forEach( currentStoryID => {
             if( !currentStoryID.startsWith( projectKey ) )
@@ -4583,7 +4582,6 @@ async function handleSubtask( issueChanges ) {
 
     async function findIssueTypeRequested( jiraSession, projectKey, issuetypeToFind ){
         const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey, issuetypeNames: issuetypeToFind } )
-        console.log( `-- found data on issue types: ${ JSON.stringify( foundData ) }` )
         if( !foundData
             || !foundData.projects
             || foundData.projects.length === 0
@@ -4591,7 +4589,6 @@ async function handleSubtask( issueChanges ) {
             || !foundData.projects[ 0 ].issuetypes.length === 0 )
             return null
 
-        console.log( `-- found those issue types: ${ JSON.stringify( foundData.issuetypes ) }` )
         return foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name === issuetypeToFind )
     }
 
