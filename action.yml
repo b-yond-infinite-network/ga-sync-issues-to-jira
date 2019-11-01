@@ -20,7 +20,7 @@ inputs:
   JIRA_ISSUETYPE_NAME:
     description: 'the issue type to use to track the Github Issues'
     required: true
-    default: 'Sub-task'
+    default: 'Subtask'
 
 outputs: # output will be available to future steps
   status:
