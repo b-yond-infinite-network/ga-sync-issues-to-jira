@@ -30,7 +30,7 @@ async function handleIssues( ) {
         const issueDetails = changeEvent.issue
         console.log( `=found that many labels with keys ${ JSON.stringify( issueDetails.labels ) }` )
         if( !issueDetails.labels
-            ||  issueDetails.labels.length() < 1 ){
+            ||  issueDetails.labels.length < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
             return null
         }
@@ -39,7 +39,7 @@ async function handleIssues( ) {
         const jiraIDS = issueDetails.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
 
         console.log( `=found that many labels with keys ${ jiraIDS }` )
-        if( jiraIDS.length() < 1 ){
+        if( jiraIDS.length < 1 ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
             return null
         }
