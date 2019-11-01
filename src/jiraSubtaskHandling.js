@@ -59,7 +59,9 @@ async function handleSubtask( issueChanges ) {
     }
 
     async function findIssueTypeRequested( jiraSession, projectKey, issuetypeToFind ){
-        return await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey, issuetypeNames: issuetypeToFind })
+        return await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey } )
+            // , issuetypeNames: issuetypeToFind
+        // })
     }
 
     async function parseStorySubtasksToFindGHIssue( jiraSession, storyKey, summaryToFind ){
