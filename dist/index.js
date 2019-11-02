@@ -4599,7 +4599,7 @@ async function handleSubtask( issueChanges ) {
             return null
 
         return parentIssue[ "sub-tasks" ].find( async currentSubTask => {
-            const subtaskData = await jiraSession.issue.getIssue({ issueKey: currentSubTask.outwardIssue.key, fields: ['summary'] })
+            const subtaskData = await jiraSession.issue.getIssue({ issueKey: currentSubTask.outwardIssue.key, properties: 'summary' })
             return subtaskData.summary === summaryToFind
         } )
     }
