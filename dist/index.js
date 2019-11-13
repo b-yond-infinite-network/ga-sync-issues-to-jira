@@ -4593,7 +4593,7 @@ async function handleSubtask( issueChanges ) {
 
     async function findGHIssueInSubtasks( jiraSession, storyKey, summaryToFind ){
         console.log( `--- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
-        const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: 'subtasks' }) //, fields: 'sub-tasks'
+        const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: ['subtasks'] }) //, fields: 'sub-tasks'
         console.log( `--- found issue infos: ${ JSON.stringify( parentIssue ) }` )
         if( !parentIssue[ "sub-tasks" ] )
             return null
@@ -4634,7 +4634,7 @@ async function handleSubtask( issueChanges ) {
                     ]
                 },
                 "labels": [
-                    "GIHUTB" + ghIssue.id
+                    "GITHUB" + ghIssue.id
                 ]
             }
         }
