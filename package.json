@@ -6,7 +6,8 @@
   "scripts": {
     "lint": "eslint src/index.js",
     "package": "ncc build src/index.js -o dist",
-    "test": "eslint src/index.js && jest"
+    "test": "eslint src/index.js && jest",
+    "coverage": "codecov"
   },
   "repository": {
     "type": "git",
