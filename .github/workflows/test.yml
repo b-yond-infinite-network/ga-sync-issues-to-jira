@@ -18,4 +18,6 @@ jobs:
 #      with:
 #        JIRA_PROJECTKEY: TEST
 #        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - run: npm run coverage --token="${{ secrets.CODECOV_TOKEN }}"
+    - uses: codecov/codecov-action@v1.0.3
+      with:
+        token: ${{secrets.CODECOV_TOKEN}}
