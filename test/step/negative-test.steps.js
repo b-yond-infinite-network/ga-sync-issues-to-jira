@@ -14,9 +14,10 @@ jestCucumber.defineFeature( feature, test => {
     test('Do nothing if the project key specified doesn\'t exist', ( { given, when, then } ) => {
 
         when('I specify an empty project', async () => {
-            expect( await handleSubtask(await handleIssues() ) )
-                .toThrow( 'This action was not triggered by a Github Issue.' )
-            // const inutil = 'inutile'
+            await handleSubtask(await handleIssues())
+            //
+            // expect( await handleSubtask(await handleIssues() ) )
+            //     .toThrow( 'This action was not triggered by a Github Issue.' )
         } )
 
         then('we do nothing and exit succesfully', () => {
