@@ -18,7 +18,7 @@
     "JavaScript"
   ],
   "author": "GitHub",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues"
   },
@@ -32,15 +32,25 @@
   },
   "devDependencies": {
     "@zeit/ncc": "^0.20.5",
+    "auto-jest-cucumber": "^1.2.0",
+    "codecov": "^4.0.0-0",
     "eslint": "^6.3.0",
-    "nock": "^11.7.0",
     "husky": "^3.0.9",
-    "jest": "^24.9.0"
+    "jest": "^24.9.0",
+    "jest-cucumber": "^2.0.11",
+    "nock": "^11.7.0"
   },
   "husky": {
     "hooks": {
       "pre-commit": "npm test && npm run package && git add dist/index.js",
       "pre-push": "npm test"
     }
+  },
+  "jest": {
+    "testMatch": [
+      "**/*.steps.js"
+    ],
+    "coverageDirectory": "./coverage/",
+    "collectCoverage": true
   }
 }

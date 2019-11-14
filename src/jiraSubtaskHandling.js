@@ -16,7 +16,7 @@ async function handleSubtask( issueChanges ) {
         }
 
         const projectKey = core.getInput('JIRA_PROJECTKEY')
-        console.log( `-- we are pushed to project with key ${ projectKey }` )
+        console.log( `- we are pushed to project with key ${ projectKey }` )
 
         const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
         console.log( `-- using issue type ${ issueTypeName }` )
@@ -39,17 +39,20 @@ async function handleSubtask( issueChanges ) {
             if( !currentStory.name.startsWith( projectKey ) )
             //skipping story not in our project
                 return
-            console.log(`--- currently attaching to story: ${ currentStory.name }`)
+            console.log(`-- currently attaching to story: ${ currentStory.name }`)
 
-            if (isSubtask) {
-                const subtaskFound = await findGHIssueInSubtasks(jiraSession, currentStory.name, issueChanges.details['title'])
-                if (!subtaskFound) {
-                    //there's no such subtask,
-                    // we need to create one attached to the parent Story
-                    await createJiraIssueFromGHIssue(jiraSession, projectKey, currentStory, issueTypeName, isSubtask, issueChanges.details)
-                    return
-                }
+            const issueToSync = ( isSubtask
+                                    ? await findGHIssueInSubtasks( jiraSession, currentStory.name, issueChanges.details['title'] )
+                                    : await jiraSession.issue.getIssue( { issueKey: currentStory.name } ) )
+            if (!issueToSync) {
+                //there's no such Issue or Subtask in the issue,
+                // we need to create one or attach one to the parent Story
+                await createJiraIssueFromGHIssue( jiraSession, projectKey, currentStory, issueTypeName, isSubtask, issueChanges.details)
+                return
             }
+            //we found our issue/subtask, let's sync!
+
+
         }
     } catch ( error ) {
         core.setFailed( error.message )
@@ -68,11 +71,14 @@ async function handleSubtask( issueChanges ) {
     }
 
     async function findGHIssueInSubtasks( jiraSession, storyKey, summaryToFind ){
-        console.log( `--- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
+        console.log( `-- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
         const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: ['subtasks'] }) //, fields: 'sub-tasks'
-        console.log( `--- found issue infos: ${ JSON.stringify( parentIssue ) }` )
-        if( !parentIssue[ "sub-tasks" ] )
+        console.log( `--- found issue infos with subtasks: ${ JSON.stringify( parentIssue[ "subtasks" ] ) }` )
+        if( !parentIssue[ "subtasks" ]
+            || parentIssue[ "subtasks" ].length() ) {
+            console.log( `---! it has no subtasks` )
             return null
+        }
 
         return parentIssue[ "sub-tasks" ].find( async currentSubTask => {
             const subtaskData = await jiraSession.issue.getIssue({ issueKey: currentSubTask.outwardIssue.key, properties: 'summary' })
@@ -114,7 +120,45 @@ async function handleSubtask( issueChanges ) {
                 ]
             }
         }
-        console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ issueData }` )
+        console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ JSON.stringify( issueData ) }` )
+        // await jiraSession.issue.createIssue( issueData )
+    }
+
+    async function syncJiraFromGH( jiraSession, projectKey, jiraIssueToSync, ghIssue ) {
+        // const issueData = {
+        //     "update": {},
+        //     "fields": {
+        //         "summary": ghIssue.title,
+        //         "parent": {
+        //             "key": parentStoryKey
+        //         },
+        //         "issuetype": {
+        //             "name": issueTypeNameToUse
+        //         },
+        //         "project": {
+        //             "key": projectKey
+        //         },
+        //         "description": {
+        //             "type": "doc",
+        //             "version": 1,
+        //             "content": [
+        //                 {
+        //                     "type": "paragraph",
+        //                     "content": [
+        //                         {
+        //                             "text": ghIssue.body,
+        //                             "type": "text"
+        //                         }
+        //                     ]
+        //                 }
+        //             ]
+        //         },
+        //         "labels": [
+        //             "GITHUB" + ghIssue.id
+        //         ]
+        //     }
+        // }
+        // console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ issueData }` )
         // await jiraSession.issue.createIssue( issueData )
     }
 }

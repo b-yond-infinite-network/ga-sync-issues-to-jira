@@ -22,7 +22,7 @@ inputs:
     required: true
     default: 'Subtask'
 
-outputs: # output will be available to future steps
+outputs: # output will be available to future step
   status:
     description: 'The status of the sync'
   time:
