@@ -4522,28 +4522,28 @@ module.exports = require("os");
 /* 88 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-const core = __webpack_require__(470)
-const JiraClient = __webpack_require__(876)
+const core          = __webpack_require__(470)
+const JiraClient    = __webpack_require__(876)
 
-async function handleSubtask( issueChanges ) {
+async function handleSubtask( issueChanges, useSubtaskMode ) {
     //ISSUE CHANGE will be:
     //      {
     //             event:          payload.action,
-    //             stories:        jiraIDS,
+    //             jiraKeys:       jiraKeys,
     //             changes:        changedValues,
     //             details:        payload.issue
     //         }
     try {
-        if( !issueChanges.stories ){
+        if( !issueChanges.jiraKeys ){
             //we have no parent task in JIRA, this should never happen
-            console.log( `ERROR: no JIRA parent story is labelled.` )
+            console.log( `WARNING: no JIRA parent story is labelled.` )
         }
 
-        const projectKey = core.getInput('JIRA_PROJECTKEY')
-        console.log( `- we are pushed to project with key ${ projectKey }` )
+        const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
+        console.log( `- we are pushed to project with key ${ jiraProjectKey }` )
 
-        const issueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
-        console.log( `-- using issue type ${ issueTypeName }` )
+        const jiraIssueTypeName = core.getInput('JIRA_ISSUETYPE_NAME')
+        console.log( `-- using issue type ${ jiraIssueTypeName }` )
 
         //Let's login to JIRA first
         const jiraSession = new JiraClient({
@@ -4552,38 +4552,84 @@ async function handleSubtask( issueChanges ) {
                 email: core.getInput('JIRA_USEREMAIL'),
                 api_token: core.getInput('JIRA_APITOKEN'),
             } } )
+    
+        console.log( '-- login in JIRA' )
+        await loginToJiraAndCheckMyself( jiraSession )
+        
+    
+        console.log( '--- checking project exist' )
+        await checkProjectExist( jiraSession, jiraProjectKey )
+    
+    
+        console.log( '--- checking issue type exist' )
+        await findIssueTypeRequested( jiraSession, jiraProjectKey, jiraIssueTypeName )
+        // const isSubtaskType = jiraIssuetypeFound.subtask
 
-        const issuetypeFound = await findIssueTypeRequested( jiraSession, projectKey, issueTypeName )
-        if( !issuetypeFound )
-            throw `The issue type name specified does not exist or is ambiguous`
-
-        const isSubtask = issuetypeFound.subtask
-
-        for( const currentStory of issueChanges.stories ) {
-            if( !currentStory.name.startsWith( projectKey ) )
-            //skipping story not in our project
-                return
-            console.log(`-- currently attaching to story: ${ currentStory.name }`)
-
-            const issueToSync = ( isSubtask
-                                    ? await findGHIssueInSubtasks( jiraSession, currentStory.name, issueChanges.details['title'] )
-                                    : await jiraSession.issue.getIssue( { issueKey: currentStory.name } ) )
-            if (!issueToSync) {
-                //there's no such Issue or Subtask in the issue,
-                // we need to create one or attach one to the parent Story
-                await createJiraIssueFromGHIssue( jiraSession, projectKey, currentStory, issueTypeName, isSubtask, issueChanges.details)
-                return
-            }
-            //we found our issue/subtask, let's sync!
-
-
+        const labelledJIRAIssuesKey = issueChanges.jiraKeys.filter( currentJiraIssueKey => currentJiraIssueKey.startsWith( jiraProjectKey ) )
+        const labelledJIRASubtasksKey = ( useSubtaskMode
+                                          ? issueChanges.jiraKeys.filter( currentJiraIssueKey => currentJiraIssueKey.startsWith( 'sub' + jiraProjectKey ) )
+                                          : null )
+        
+        if( labelledJIRAIssuesKey.length === 0 ){
+            console.log( `ERROR: no label match the project key ${ jiraProjectKey } -- this should have be trapped before, \n` +
+                         'please log an issue at https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues' )
+            return
         }
+        
+        const subtaskOrIssueToUpdate =  await Promise.all( labelledJIRAIssuesKey.map( async ( currentJIRAIssueKey ) => {
+            console.log(`-- currently attaching to JIRA Issue: ${ currentJIRAIssueKey }`)
+            const foundJIRAIssue = await findIssue( jiraSession, currentJIRAIssueKey )
+            if( !foundJIRAIssue )
+                return null
+
+            if( useSubtaskMode ){
+                const summaryToLookFor = ( issueChanges.event === 'edited' && 'title' in issueChanges.changes
+                                           ? issueChanges.changes.title.from
+                                           : issueChanges.details[ 'title' ] )
+                const foundSubtask = await findSubtaskWithKeysOrTitle( jiraSession, currentJIRAIssueKey, labelledJIRASubtasksKey, summaryToLookFor )
+                if( foundSubtask )
+                    return foundSubtask
+
+                return await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookFor )
+            }
+
+            //we're not in subtask mode, so we're replacing whatever info we got from the labelled story itself
+            return currentJIRAIssueKey
+        } ) )
+        
+        return subtaskOrIssueToUpdate.filter( currentSubtaskOrIssueToUpdate => currentSubtaskOrIssueToUpdate !== null )
+        
     } catch ( error ) {
-        core.setFailed( error.message )
+        core.setFailed( error.message
+                        ? error.message
+                        : error.body && error.body.message
+                          ? error.body.message
+                          : JSON.stringify( error ) )
+    }
+    
+    async function loginToJiraAndCheckMyself( jiraSession ){
+        try{  await jiraSession.myself.getMyself() }
+    
+        catch( myselfError ) {
+            manageJIRAAPIError( myselfError, jiraSession )
+        }
+    }
+    
+    async function checkProjectExist( jiraSession, jiraProjectKey ){
+        try{
+            return await jiraSession.project.getProject( { projectIdOrKey: jiraProjectKey } )
+        }
+        
+        catch( projectError ) {
+            manageJIRAAPIError( projectError,
+                                jiraSession,
+                                `### project ${ jiraProjectKey } is invalid in JIRA`,
+                                'Project doesn\'t exist in JIRA' )
+        }
     }
 
-    async function findIssueTypeRequested( jiraSession, projectKey, issuetypeToFind ){
-        const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: projectKey, issuetypeNames: issuetypeToFind } )
+    async function findIssueTypeRequested( jiraSession, jiraProjectKey, issuetypeToFind ){
+        const foundData = await jiraSession.issue.getCreateMetadata( { projectKeys: jiraProjectKey, issuetypeNames: issuetypeToFind } )
         if( !foundData
             || !foundData.projects
             || foundData.projects.length === 0
@@ -4591,9 +4637,79 @@ async function handleSubtask( issueChanges ) {
             || !foundData.projects[ 0 ].issuetypes.length === 0 )
             return null
 
-        return foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name === issuetypeToFind )
+        const issueTypefound = foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name === issuetypeToFind )
+        if( !issueTypefound ){
+            console.log(`### Issue Type ${ issuetypeToFind } is invalid in JIRA`)
+            throw `The JIRA issue type specified does not exist or is ambiguous`
+        }
+        return issueTypefound
     }
-
+    
+    async function findIssue( jiraSession, jiraIssueKey ){
+        try{
+            return await jiraSession.issue.getIssue( { issueKey: jiraIssueKey } )
+        }
+        catch( issueError ) {
+            manageJIRAAPIError( issueError,
+                                jiraSession,
+                                `### issue ${ jiraIssueKey } is inaccessible in JIRA\n==> skipping label ${ jiraIssueKey }` )
+        }
+    }
+    
+    async function findSubtaskWithKeysOrTitle( jiraSession, currentJIRAIssueKey, labelledJIRASubtasksKey, titleToLookFor ){
+        // we're in subtask mode, so we want to find either:
+        // - a label in the issue that starts with 'subXXXX-XXX'
+        // - the story with the same title
+        const jiraSubtasks = await findAllSubtasks( jiraSession, currentJIRAIssueKey )
+    
+        const foundWithKey = findSubtaskWithKey( jiraSubtasks, labelledJIRASubtasksKey )
+        if( foundWithKey )
+            return foundWithKey
+    
+        const foundWithTitle = findSubtaskWithTitle( jiraSubtasks, titleToLookFor )
+        if( foundWithTitle )
+            return foundWithTitle
+    
+        return null
+    }
+    
+    async function findAllSubtasks( jiraSession, jiraParentIssueKey ){
+        console.log( `-- looking for subtask of JIRA Issue ${ jiraParentIssueKey }` )
+        const jiraParentIssue = await jiraSession.issue.getIssue( { issueKey: jiraParentIssueKey, fields: ['subtasks'] } )
+        if( !jiraParentIssue[ "subtasks" ]
+            || jiraParentIssue[ "subtasks" ].length() ) {
+            // no subtask found means we will create one
+            console.log( '----! no subtasks found, creating a new one' )
+            return null
+        }
+        
+        return jiraParentIssue[ "subtasks" ]
+    }
+    
+    function findSubtaskWithKey( jiraSubtasksIssuesArray, githubLabelForSubtaskKeyArray ){
+        console.log( `--- looking for one with key inside ${ JSON.stringify(  githubLabelForSubtaskKeyArray ) }` )
+        //filtering subtask to find a key that is in the list of subtask Labels in GITHUB
+        return jiraSubtasksIssuesArray.find( currentSubtask => githubLabelForSubtaskKeyArray.includes( currentSubtask.key ) )
+    }
+    
+    function findSubtaskWithTitle( jiraSubtasksIssuesArray, summaryToFind ){
+        console.log( `--- looking for one with summary ${ summaryToFind }` )
+        //filtering subtask to find our title
+        const arrFoundSubtasksIssueWithTitle = jiraSubtasksIssuesArray.filter( currentJIRASubtaskObject => {
+            return currentJIRASubtaskObject.fields.summary && currentJIRASubtaskObject.fields.summary === summaryToFind
+        } )
+        
+        if( arrFoundSubtasksIssueWithTitle.length === 0 ){
+            console.log( `----! no subtasks found with the title '${ summaryToFind }' found, creating a new one` )
+            return null
+        }
+    
+        if( arrFoundSubtasksIssueWithTitle.length > 1 )
+            console.log( '----! found more than one subtask with our title, returning the first' )
+    
+        return arrFoundSubtasksIssueWithTitle[ 0 ]
+    }
+    
     async function findGHIssueInSubtasks( jiraSession, storyKey, summaryToFind ){
         console.log( `-- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
         const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: ['subtasks'] }) //, fields: 'sub-tasks'
@@ -4610,85 +4726,117 @@ async function handleSubtask( issueChanges ) {
         } )
     }
 
-    async function createJiraIssueFromGHIssue( jiraSession, projectKey, parentStoryKey, issueTypeNameToUse, ghIssue ) {
+    async function createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeNameToUse, jiraParentIssueKey, title ) {
         const issueData = {
             "update": {},
             "fields": {
-                "summary": ghIssue.title,
-                "parent": {
-                    "key": parentStoryKey
+                "project": {
+                    "key": jiraProjectKey
                 },
                 "issuetype": {
-                    "name": issueTypeNameToUse
+                    "name": jiraIssueTypeNameToUse
                 },
-                "project": {
-                    "key": projectKey
+                "parent": {
+                    "key": jiraParentIssueKey
                 },
-                "description": {
-                    "type": "doc",
-                    "version": 1,
-                    "content": [
-                        {
-                            "type": "paragraph",
-                            "content": [
-                                {
-                                    "text": ghIssue.body,
-                                    "type": "text"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                "labels": [
-                    "GITHUB" + ghIssue.id
-                ]
+                "summary": title
+                
+                // "description": {
+                //     "type": "doc",
+                //     "version": 1,
+                //     "content": [
+                //         {
+                //             "type": "paragraph",
+                //             "content": [
+                //                 {
+                //                     "text": ,
+                //                     "type": "text"
+                //                 }
+                //             ]
+                //         }
+                //     ]
+                // },
+                // "labels": [
+                //     "GITHUB" + ghIssue.id
+                // ]
             }
         }
-        console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ JSON.stringify( issueData ) }` )
-        // await jiraSession.issue.createIssue( issueData )
+        console.log( `Creating JIRA Issue of type : ${ JSON.stringify( jiraIssueTypeNameToUse ) } with title: ${ title }` )
+        
+        try{
+            return await jiraSession.issue.createIssue( issueData )
+        }
+        catch( createError ){
+            manageJIRAAPIError( createError,
+                                jiraSession,
+                                '##### Unable to create Issue in JIRA',
+                                'Create Issue failed' )
+        }
     }
 
-    async function syncJiraFromGH( jiraSession, projectKey, jiraIssueToSync, ghIssue ) {
-        // const issueData = {
-        //     "update": {},
-        //     "fields": {
-        //         "summary": ghIssue.title,
-        //         "parent": {
-        //             "key": parentStoryKey
-        //         },
-        //         "issuetype": {
-        //             "name": issueTypeNameToUse
-        //         },
-        //         "project": {
-        //             "key": projectKey
-        //         },
-        //         "description": {
-        //             "type": "doc",
-        //             "version": 1,
-        //             "content": [
-        //                 {
-        //                     "type": "paragraph",
-        //                     "content": [
-        //                         {
-        //                             "text": ghIssue.body,
-        //                             "type": "text"
-        //                         }
-        //                     ]
-        //                 }
-        //             ]
-        //         },
-        //         "labels": [
-        //             "GITHUB" + ghIssue.id
-        //         ]
-        //     }
-        // }
-        // console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ issueData }` )
-        // await jiraSession.issue.createIssue( issueData )
+    // async function syncJiraFromGH( jiraSession, jiraProjectKey, jiraIssueToSync, ghIssue ) {
+    //     // const issueData = {
+    //     //     "update": {},
+    //     //     "fields": {
+    //     //         "summary": ghIssue.title,
+    //     //         "parent": {
+    //     //             "key": parentStoryKey
+    //     //         },
+    //     //         "issuetype": {
+    //     //             "name": issueTypeNameToUse
+    //     //         },
+    //     //         "project": {
+    //     //             "key": jiraProjectKey
+    //     //         },
+    //     //         "description": {
+    //     //             "type": "doc",
+    //     //             "version": 1,
+    //     //             "content": [
+    //     //                 {
+    //     //                     "type": "paragraph",
+    //     //                     "content": [
+    //     //                         {
+    //     //                             "text": ghIssue.body,
+    //     //                             "type": "text"
+    //     //                         }
+    //     //                     ]
+    //     //                 }
+    //     //             ]
+    //     //         },
+    //     //         "labels": [
+    //     //             "GITHUB" + ghIssue.id
+    //     //         ]
+    //     //     }
+    //     // }
+    //     // console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ issueData }` )
+    //     // await jiraSession.issue.createIssue( issueData )
+    // }
+    
+    function manageJIRAAPIError( triggeredError, jiraSession, messageToLog, exceptionToRaise ){
+        if( triggeredError.message ){
+            console.log(`### JIRA API URL is invalid or inaccessible for ${ jiraSession.host }`)
+            throw 'Invalid API URL'
+        }
+        else {
+            const parsedError = JSON.parse( triggeredError )
+            if( parsedError.statusCode ===  401 ){
+                console.log(`### credentials unauthorized \n${ parsedError.body }`)
+                throw 'Unauthorized'
+            }
+            if( !messageToLog )
+                return
+        
+            if( parsedError.statusCode ===  404 ){
+                console.log( messageToLog )
+                if( exceptionToRaise ) throw exceptionToRaise
+            }
+        }
     }
 }
 
 
 module.exports = handleSubtask;
+
 
 /***/ }),
 /* 89 */,
@@ -5639,7 +5787,42 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
 /* 108 */,
 /* 109 */,
 /* 110 */,
-/* 111 */,
+/* 111 */
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const core              = __webpack_require__(470)
+
+const handleIssues      = __webpack_require__(376)
+const handleSubtask     = __webpack_require__(88)
+
+async function syncJiraWithGH() {
+    try {
+        const useSubtaskMode = core.getInput('SUBTASK_MODE')
+        const issueEventTriggered = await handleIssues()
+
+        if (!issueEventTriggered) {
+            console.log('Ending Action')
+            return
+        }
+
+        const subtaskOrIssueToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
+        if( !subtaskOrIssueToUpdate ){
+            console.log('Ending Action')
+            return
+        }
+        console.log( `Updating JIRA Issue: ${ JSON.stringify( subtaskOrIssueToUpdate ) }` )
+    
+        core.setOutput('time', new Date().toTimeString() )
+        
+    } catch ( error ) {
+        core.setFailed( error.message )
+    }
+}
+
+module.exports = syncJiraWithGH
+
+
+/***/ }),
 /* 112 */,
 /* 113 */
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
@@ -11224,7 +11407,7 @@ module.exports = require("punycode");
 /* 215 */
 /***/ (function(module) {
 
-module.exports = {"_from":"@octokit/rest@^16.15.0","_id":"@octokit/rest@16.34.0","_inBundle":false,"_integrity":"sha512-EBe5qMQQOZRuezahWCXCnSe0J6tAqrW2hrEH9U8esXzKor1+HUDf8jgImaZf5lkTyWCQA296x9kAH5c0pxEgVQ==","_location":"/@octokit/rest","_phantomChildren":{"os-name":"3.1.0"},"_requested":{"type":"range","registry":true,"raw":"@octokit/rest@^16.15.0","name":"@octokit/rest","escapedName":"@octokit%2frest","scope":"@octokit","rawSpec":"^16.15.0","saveSpec":null,"fetchSpec":"^16.15.0"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/rest/-/rest-16.34.0.tgz","_shasum":"8703e46d7e9f6aec24a7e591b073f325ca13f6e2","_spec":"@octokit/rest@^16.15.0","_where":"/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/sync-jira-subtask-to-gh-issues-action/node_modules/@actions/github","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/rest.js/issues"},"bundleDependencies":false,"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}],"contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"dependencies":{"@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"deprecated":false,"description":"GitHub REST API client for Node.js","devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^12.0.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.0.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^2.1.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","mkdirp":"^0.5.1","mocha":"^6.0.0","mustache":"^3.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^14.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^15.0.0","sinon":"^7.2.4","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"files":["index.js","index.d.ts","lib","plugins"],"homepage":"https://github.com/octokit/rest.js#readme","keywords":["octokit","github","rest","api-client"],"license":"MIT","name":"@octokit/rest","nyc":{"ignore":["test"]},"publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/rest.js.git"},"scripts":{"build":"npm-run-all build:*","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","build:ts":"npm run -s update-endpoints:typescript","coverage":"nyc report --reporter=html && open coverage/index.html","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","prebuild:browser":"mkdirp dist/","pretest":"npm run -s lint","prevalidate:ts":"npm run -s build:ts","start-fixtures-server":"octokit-fixtures-server","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:code":"node scripts/update-endpoints/code","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts"},"types":"index.d.ts","version":"16.34.0"};
+module.exports = {"_args":[["@octokit/rest@16.34.0","/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira"]],"_from":"@octokit/rest@16.34.0","_id":"@octokit/rest@16.34.0","_inBundle":false,"_integrity":"sha512-EBe5qMQQOZRuezahWCXCnSe0J6tAqrW2hrEH9U8esXzKor1+HUDf8jgImaZf5lkTyWCQA296x9kAH5c0pxEgVQ==","_location":"/@octokit/rest","_phantomChildren":{"os-name":"3.1.0"},"_requested":{"type":"version","registry":true,"raw":"@octokit/rest@16.34.0","name":"@octokit/rest","escapedName":"@octokit%2frest","scope":"@octokit","rawSpec":"16.34.0","saveSpec":null,"fetchSpec":"16.34.0"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/rest/-/rest-16.34.0.tgz","_spec":"16.34.0","_where":"/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/rest.js/issues"},"bundlesize":[{"path":"./dist/octokit-rest.min.js.gz","maxSize":"33 kB"}],"contributors":[{"name":"Mike de Boer","email":"info@mikedeboer.nl"},{"name":"Fabian Jakobs","email":"fabian@c9.io"},{"name":"Joe Gallo","email":"joe@brassafrax.com"},{"name":"Gregor Martynus","url":"https://github.com/gr2m"}],"dependencies":{"@octokit/request":"^5.2.0","@octokit/request-error":"^1.0.2","atob-lite":"^2.0.0","before-after-hook":"^2.0.0","btoa-lite":"^1.0.0","deprecation":"^2.0.0","lodash.get":"^4.4.2","lodash.set":"^4.3.2","lodash.uniq":"^4.5.0","octokit-pagination-methods":"^1.1.0","once":"^1.4.0","universal-user-agent":"^4.0.0"},"description":"GitHub REST API client for Node.js","devDependencies":{"@gimenete/type-writer":"^0.1.3","@octokit/fixtures-server":"^5.0.6","@octokit/graphql":"^4.2.0","@types/node":"^12.0.0","bundlesize":"^0.18.0","chai":"^4.1.2","compression-webpack-plugin":"^3.0.0","cypress":"^3.0.0","glob":"^7.1.2","http-proxy-agent":"^2.1.0","lodash.camelcase":"^4.3.0","lodash.merge":"^4.6.1","lodash.upperfirst":"^4.3.1","mkdirp":"^0.5.1","mocha":"^6.0.0","mustache":"^3.0.0","nock":"^11.3.3","npm-run-all":"^4.1.2","nyc":"^14.0.0","prettier":"^1.14.2","proxy":"^1.0.0","semantic-release":"^15.0.0","sinon":"^7.2.4","sinon-chai":"^3.0.0","sort-keys":"^4.0.0","string-to-arraybuffer":"^1.0.0","string-to-jsdoc-comment":"^1.0.0","typescript":"^3.3.1","webpack":"^4.0.0","webpack-bundle-analyzer":"^3.0.0","webpack-cli":"^3.0.0"},"files":["index.js","index.d.ts","lib","plugins"],"homepage":"https://github.com/octokit/rest.js#readme","keywords":["octokit","github","rest","api-client"],"license":"MIT","name":"@octokit/rest","nyc":{"ignore":["test"]},"publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/rest.js.git"},"scripts":{"build":"npm-run-all build:*","build:browser":"npm-run-all build:browser:*","build:browser:development":"webpack --mode development --entry . --output-library=Octokit --output=./dist/octokit-rest.js --profile --json > dist/bundle-stats.json","build:browser:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=Octokit --output-path=./dist --output-filename=octokit-rest.min.js --devtool source-map","build:ts":"npm run -s update-endpoints:typescript","coverage":"nyc report --reporter=html && open coverage/index.html","generate-bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","lint":"prettier --check '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","lint:fix":"prettier --write '{lib,plugins,scripts,test}/**/*.{js,json,ts}' 'docs/*.{js,json}' 'docs/src/**/*' index.js README.md package.json","postvalidate:ts":"tsc --noEmit --target es6 test/typescript-validate.ts","prebuild:browser":"mkdirp dist/","pretest":"npm run -s lint","prevalidate:ts":"npm run -s build:ts","start-fixtures-server":"octokit-fixtures-server","test":"nyc mocha test/mocha-node-setup.js \"test/*/**/*-test.js\"","test:browser":"cypress run --browser chrome","update-endpoints":"npm-run-all update-endpoints:*","update-endpoints:code":"node scripts/update-endpoints/code","update-endpoints:fetch-json":"node scripts/update-endpoints/fetch-json","update-endpoints:typescript":"node scripts/update-endpoints/typescript","validate:ts":"tsc --target es6 --noImplicitAny index.d.ts"},"types":"index.d.ts","version":"16.34.0"};
 
 /***/ }),
 /* 216 */,
@@ -17220,7 +17403,7 @@ function normalizePaginatedListResponse(octokit, url, response) {
 /* 314 */
 /***/ (function(module) {
 
-module.exports = {"_from":"@octokit/graphql@^2.0.1","_id":"@octokit/graphql@2.1.3","_inBundle":false,"_integrity":"sha512-XoXJqL2ondwdnMIW3wtqJWEwcBfKk37jO/rYkoxNPEVeLBDGsGO1TCWggrAlq3keGt/O+C/7VepXnukUxwt5vA==","_location":"/@octokit/graphql","_phantomChildren":{},"_requested":{"type":"range","registry":true,"raw":"@octokit/graphql@^2.0.1","name":"@octokit/graphql","escapedName":"@octokit%2fgraphql","scope":"@octokit","rawSpec":"^2.0.1","saveSpec":null,"fetchSpec":"^2.0.1"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/graphql/-/graphql-2.1.3.tgz","_shasum":"60c058a0ed5fa242eca6f938908d95fd1a2f4b92","_spec":"@octokit/graphql@^2.0.1","_where":"/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/sync-jira-subtask-to-gh-issues-action/node_modules/@actions/github","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/graphql.js/issues"},"bundleDependencies":false,"bundlesize":[{"path":"./dist/octokit-graphql.min.js.gz","maxSize":"5KB"}],"dependencies":{"@octokit/request":"^5.0.0","universal-user-agent":"^2.0.3"},"deprecated":false,"description":"GitHub GraphQL API client for browsers and Node","devDependencies":{"chai":"^4.2.0","compression-webpack-plugin":"^2.0.0","coveralls":"^3.0.3","cypress":"^3.1.5","fetch-mock":"^7.3.1","mkdirp":"^0.5.1","mocha":"^6.0.0","npm-run-all":"^4.1.3","nyc":"^14.0.0","semantic-release":"^15.13.3","simple-mock":"^0.8.0","standard":"^12.0.1","webpack":"^4.29.6","webpack-bundle-analyzer":"^3.1.0","webpack-cli":"^3.2.3"},"files":["lib"],"homepage":"https://github.com/octokit/graphql.js#readme","keywords":["octokit","github","api","graphql"],"license":"MIT","main":"index.js","name":"@octokit/graphql","publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/graphql.js.git"},"scripts":{"build":"npm-run-all build:*","build:development":"webpack --mode development --entry . --output-library=octokitGraphql --output=./dist/octokit-graphql.js --profile --json > dist/bundle-stats.json","build:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=octokitGraphql --output-path=./dist --output-filename=octokit-graphql.min.js --devtool source-map","bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","coverage":"nyc report --reporter=html && open coverage/index.html","coverage:upload":"nyc report --reporter=text-lcov | coveralls","prebuild":"mkdirp dist/","pretest":"standard","test":"nyc mocha test/*-test.js","test:browser":"cypress run --browser chrome"},"standard":{"globals":["describe","before","beforeEach","afterEach","after","it","expect"]},"version":"2.1.3"};
+module.exports = {"_args":[["@octokit/graphql@2.1.3","/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira"]],"_from":"@octokit/graphql@2.1.3","_id":"@octokit/graphql@2.1.3","_inBundle":false,"_integrity":"sha512-XoXJqL2ondwdnMIW3wtqJWEwcBfKk37jO/rYkoxNPEVeLBDGsGO1TCWggrAlq3keGt/O+C/7VepXnukUxwt5vA==","_location":"/@octokit/graphql","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"@octokit/graphql@2.1.3","name":"@octokit/graphql","escapedName":"@octokit%2fgraphql","scope":"@octokit","rawSpec":"2.1.3","saveSpec":null,"fetchSpec":"2.1.3"},"_requiredBy":["/@actions/github"],"_resolved":"https://registry.npmjs.org/@octokit/graphql/-/graphql-2.1.3.tgz","_spec":"2.1.3","_where":"/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira","author":{"name":"Gregor Martynus","url":"https://github.com/gr2m"},"bugs":{"url":"https://github.com/octokit/graphql.js/issues"},"bundlesize":[{"path":"./dist/octokit-graphql.min.js.gz","maxSize":"5KB"}],"dependencies":{"@octokit/request":"^5.0.0","universal-user-agent":"^2.0.3"},"description":"GitHub GraphQL API client for browsers and Node","devDependencies":{"chai":"^4.2.0","compression-webpack-plugin":"^2.0.0","coveralls":"^3.0.3","cypress":"^3.1.5","fetch-mock":"^7.3.1","mkdirp":"^0.5.1","mocha":"^6.0.0","npm-run-all":"^4.1.3","nyc":"^14.0.0","semantic-release":"^15.13.3","simple-mock":"^0.8.0","standard":"^12.0.1","webpack":"^4.29.6","webpack-bundle-analyzer":"^3.1.0","webpack-cli":"^3.2.3"},"files":["lib"],"homepage":"https://github.com/octokit/graphql.js#readme","keywords":["octokit","github","api","graphql"],"license":"MIT","main":"index.js","name":"@octokit/graphql","publishConfig":{"access":"public"},"release":{"publish":["@semantic-release/npm",{"path":"@semantic-release/github","assets":["dist/*","!dist/*.map.gz"]}]},"repository":{"type":"git","url":"git+https://github.com/octokit/graphql.js.git"},"scripts":{"build":"npm-run-all build:*","build:development":"webpack --mode development --entry . --output-library=octokitGraphql --output=./dist/octokit-graphql.js --profile --json > dist/bundle-stats.json","build:production":"webpack --mode production --entry . --plugin=compression-webpack-plugin --output-library=octokitGraphql --output-path=./dist --output-filename=octokit-graphql.min.js --devtool source-map","bundle-report":"webpack-bundle-analyzer dist/bundle-stats.json --mode=static --no-open --report dist/bundle-report.html","coverage":"nyc report --reporter=html && open coverage/index.html","coverage:upload":"nyc report --reporter=text-lcov | coveralls","prebuild":"mkdirp dist/","pretest":"standard","test":"nyc mocha test/*-test.js","test:browser":"cypress run --browser chrome"},"standard":{"globals":["describe","before","beforeEach","afterEach","after","it","expect"]},"version":"2.1.3"};
 
 /***/ }),
 /* 315 */,
@@ -19189,23 +19372,26 @@ module.exports = function extend() {
 /* 376 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-const core = __webpack_require__(470)
-const github = __webpack_require__(469);
+const core      = __webpack_require__(470)
+const github    = __webpack_require__(469)
 
-async function handleIssues( ) {
-    const actionPossible = [ "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
-    const actionToConsider = [ "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
+async function handleIssues( useSubtaskMode ) {
+    const actionPossible = [ "opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
+    const actionToConsider = [ "opened", "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
 
     try {
         const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
-
+        if( !jiraProjectKey ){
+            console.log( '==> action skipped -- no project key' )
+            return null
+        }
         const changeEvent = github.context.payload
 
         if( !changeEvent.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
 
         if( actionPossible.indexOf( changeEvent.action ) === -1 )
-            throw Error( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
+            core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
 
         if( actionToConsider.indexOf( changeEvent.action ) === -1 ){
             console.log( `==> action skipped for event ${ changeEvent.action }` )
@@ -19213,6 +19399,11 @@ async function handleIssues( ) {
         }
 
         console.log( '-- retrieving all changes' )
+        if( !changeEvent.changes ){
+            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set` )
+            return null
+        }
+
         let changedValues = { }
         Object.entries( changeEvent.changes ).forEach( currentChangedAttribute => {
             changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
@@ -19221,22 +19412,34 @@ async function handleIssues( ) {
         console.log( '-- retrieving all labels' )
         const issueDetails = changeEvent.issue
         if( !issueDetails.labels
-            ||  issueDetails.labels.length < 1 ){
+            ||  issueDetails.labels.length < 1
+            ||  ( issueDetails.labels.length === 1 && issueDetails.labels[ 0 ].name === '' ) ){
             console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
             return null
         }
 
-        const jiraIDS = issueDetails.labels.filter( currentLabel => currentLabel.name.startsWith( jiraProjectKey ) )
+        const jiraGHLabelsWithIDAsNames = issueDetails.labels.filter( ( currentLabel ) => {
+            if( !currentLabel.name ) {
+                console.log( '--- some label have no name' )
+                return false
+            }
+            
+            return ( useSubtaskMode
+                     ? currentLabel.name.startsWith( 'sub' + jiraProjectKey )
+                       || currentLabel.name.startsWith( jiraProjectKey )
+                     : currentLabel.name.startsWith( jiraProjectKey ) )
+        } )
+        const jiraKeys = jiraGHLabelsWithIDAsNames.map( currentGHLabel => currentGHLabel.name )
 
         // console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
-        if( jiraIDS.length < 1 ){
-            console.log( `==> action skipped for event ${ changeEvent.action } - no jira issuekeys labels found at all` )
+        if( jiraKeys.length < 1 ){
+            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found starting with the project key -- ignoring all labels` )
             return null
         }
 
         return {
             event:      changeEvent.action,
-            stories:    jiraIDS,
+            jiraKeys:   jiraKeys,
             changes:    changedValues,
             details:    issueDetails
         }
@@ -19246,7 +19449,8 @@ async function handleIssues( ) {
     }
 }
 
-module.exports = handleIssues;
+module.exports = handleIssues
+
 
 /***/ }),
 /* 377 */,
@@ -26879,7 +27083,7 @@ function SchemaObject(obj) {
 /* 477 */
 /***/ (function(module) {
 
-module.exports = {"author":{"name":"Jeremy Stashewsky","email":"jstash@gmail.com","website":"https://github.com/stash"},"contributors":[{"name":"Alexander Savin","website":"https://github.com/apsavin"},{"name":"Ian Livingstone","website":"https://github.com/ianlivingstone"},{"name":"Ivan Nikulin","website":"https://github.com/inikulin"},{"name":"Lalit Kapoor","website":"https://github.com/lalitkapoor"},{"name":"Sam Thompson","website":"https://github.com/sambthompson"},{"name":"Sebastian Mayr","website":"https://github.com/Sebmaster"}],"license":"BSD-3-Clause","name":"tough-cookie","description":"RFC6265 Cookies and Cookie Jar for node.js","keywords":["HTTP","cookie","cookies","set-cookie","cookiejar","jar","RFC6265","RFC2965"],"version":"2.4.3","homepage":"https://github.com/salesforce/tough-cookie","repository":{"type":"git","url":"git://github.com/salesforce/tough-cookie.git"},"bugs":{"url":"https://github.com/salesforce/tough-cookie/issues"},"main":"./lib/cookie","files":["lib"],"scripts":{"test":"vows test/*_test.js","cover":"nyc --reporter=lcov --reporter=html vows test/*_test.js"},"engines":{"node":">=0.8"},"devDependencies":{"async":"^1.4.2","nyc":"^11.6.0","string.prototype.repeat":"^0.2.0","vows":"^0.8.1"},"dependencies":{"psl":"^1.1.24","punycode":"^1.4.1"},"_resolved":"https://registry.npmjs.org/tough-cookie/-/tough-cookie-2.4.3.tgz","_integrity":"sha512-Q5srk/4vDM54WJsJio3XNn6K2sCG+CQ8G5Wz6bZhRZoAe/+TxjWB/GlFAnYEbkYVlON9FMk/fE3h2RLpPXo4lQ==","_from":"tough-cookie@2.4.3"};
+module.exports = {"_args":[["tough-cookie@2.4.3","/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira"]],"_from":"tough-cookie@2.4.3","_id":"tough-cookie@2.4.3","_inBundle":false,"_integrity":"sha512-Q5srk/4vDM54WJsJio3XNn6K2sCG+CQ8G5Wz6bZhRZoAe/+TxjWB/GlFAnYEbkYVlON9FMk/fE3h2RLpPXo4lQ==","_location":"/request/tough-cookie","_phantomChildren":{},"_requested":{"type":"version","registry":true,"raw":"tough-cookie@2.4.3","name":"tough-cookie","escapedName":"tough-cookie","rawSpec":"2.4.3","saveSpec":null,"fetchSpec":"2.4.3"},"_requiredBy":["/request"],"_resolved":"https://registry.npmjs.org/tough-cookie/-/tough-cookie-2.4.3.tgz","_spec":"2.4.3","_where":"/Users/brunomorel/Dropbox (Personal)/Pro/Work/BYond/Dev/ga-sync-issues-to-jira","author":{"name":"Jeremy Stashewsky","email":"jstash@gmail.com"},"bugs":{"url":"https://github.com/salesforce/tough-cookie/issues"},"contributors":[{"name":"Alexander Savin"},{"name":"Ian Livingstone"},{"name":"Ivan Nikulin"},{"name":"Lalit Kapoor"},{"name":"Sam Thompson"},{"name":"Sebastian Mayr"}],"dependencies":{"psl":"^1.1.24","punycode":"^1.4.1"},"description":"RFC6265 Cookies and Cookie Jar for node.js","devDependencies":{"async":"^1.4.2","nyc":"^11.6.0","string.prototype.repeat":"^0.2.0","vows":"^0.8.1"},"engines":{"node":">=0.8"},"files":["lib"],"homepage":"https://github.com/salesforce/tough-cookie","keywords":["HTTP","cookie","cookies","set-cookie","cookiejar","jar","RFC6265","RFC2965"],"license":"BSD-3-Clause","main":"./lib/cookie","name":"tough-cookie","repository":{"type":"git","url":"git://github.com/salesforce/tough-cookie.git"},"scripts":{"cover":"nyc --reporter=lcov --reporter=html vows test/*_test.js","test":"vows test/*_test.js"},"version":"2.4.3"};
 
 /***/ }),
 /* 478 */,
@@ -34055,28 +34259,10 @@ module.exports = function btoa(str) {
 /* 676 */
 /***/ (function(__unusedmodule, __unusedexports, __webpack_require__) {
 
-const core = __webpack_require__(470)
-const handleIssues = __webpack_require__(376)
-const handleSubtask = __webpack_require__(88)
+const syncEngine = __webpack_require__( 111 )
 
-async function run() {
-    try {
-        const issueEventTriggered = await handleIssues()
+syncEngine.syncJiraWithGH()
 
-        if (!issueEventTriggered) {
-            console.log('Ending Action')
-            return
-        }
-
-        await handleSubtask(issueEventTriggered)
-
-        core.setOutput('time', new Date().toTimeString())
-    } catch (error) {
-        core.setFailed(error.message)
-    }
-}
-
-run()
 
 
 /***/ }),

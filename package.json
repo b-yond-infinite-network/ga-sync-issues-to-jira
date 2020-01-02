@@ -1,7 +1,7 @@
 {
-  "name": "sync-jira-subtask-to-gh-issues-action",
+  "name": "ga-sync-issues-to-jira",
   "version": "0.1.0",
-  "description": "A github Action to synchronize Github Issues and Jira subtasks",
+  "description": "A github Action to synchronize Github Issues to Jira",
   "main": "src/index.js",
   "scripts": {
     "lint": "eslint src/index.js",
@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action"
+    "url": "git+https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira"
   },
   "keywords": [
     "GitHub",
@@ -21,9 +21,9 @@
   "author": "GitHub",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues"
+    "url": "https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/issues"
   },
-  "homepage": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action#readme",
+  "homepage": "https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira#readme",
   "dependencies": {
     "@actions/core": "^1.1.1",
     "@actions/github": "^1.0.0",
