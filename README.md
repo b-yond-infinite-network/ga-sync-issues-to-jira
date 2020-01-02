@@ -31,7 +31,7 @@ with:
   jira-prefix: BIP
 ```
 
-See the [actions tab](https://github.com/actions/javascript-action/actions) for runs of this action! :rocket:
+See the [actions tab](https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions) for runs of this action! :rocket:
 
 # Contributing
 
