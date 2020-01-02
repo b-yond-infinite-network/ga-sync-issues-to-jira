@@ -1,0 +1,8 @@
+{
+  "action": "opened",
+  "changes": {
+    "title": {
+      "from": "test"
+    }
+  }
+}

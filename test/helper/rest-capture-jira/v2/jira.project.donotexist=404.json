@@ -1,0 +1,6 @@
+{
+  "errorMessages": [
+    "No project could be found with key 'donotexist'."
+  ],
+  "errors": {}
+}

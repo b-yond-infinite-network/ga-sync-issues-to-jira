@@ -1,5 +1,5 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: 'JiraTaskSync'
+description: 'Sync GITHUB Issues with JIRA Tasks (or Subtasks)'
 inputs:
   JIRA_BASEURL:
     description: 'hostname to connect to Jira (do not add https://)'
@@ -10,17 +10,21 @@ inputs:
     required: true
     default: 'BLANK'
   JIRA_APITOKEN:
-    description: 'token to use to connect to Jira'
+    description: 'token to use to connect to JIRA'
     required: true
     default: 'http://localhost'
   JIRA_PROJECTKEY:
-    description: 'the key (prefix) used by Jira for the project'
+    description: 'the key (prefix) used by JIRA for the project'
     required: true
     default: 'BLA'
   JIRA_ISSUETYPE_NAME:
-    description: 'the issue type to use to track the Github Issues'
+    description: 'the JIRA issue type to use in JIRA to track the GITHUB Issues'
     required: true
     default: 'Subtask'
+  SUBTASK_MODE:
+    description: 'Should we attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
+    required: true
+    default: 'true'
 
 outputs: # output will be available to future step
   status:

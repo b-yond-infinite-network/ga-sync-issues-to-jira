@@ -1,0 +1,73 @@
+{
+  "expand": "description,lead,issueTypes,url,projectKeys,permissions,insight",
+  "self": "https://nexiusocp.atlassian.net/rest/api/2/project/13029",
+  "id": "13029",
+  "key": "TEST",
+  "description": "",
+  "lead": {
+    "self": "https://nexiusocp.atlassian.net/rest/api/2/user?accountId=557058:17978c17-b31d-41c2-a538-fcbb028ab603",
+    "key": "b.morel.byd",
+    "accountId": "557058:17978c17-b31d-41c2-a538-fcbb028ab603",
+    "name": "b.morel.byd",
+    "avatarUrls": {
+      "48x48": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/557058:17978c17-b31d-41c2-a538-fcbb028ab603/8cc095c5-f5aa-4c94-9b4c-244e2041e8cb/128?size=48&s=48",
+      "24x24": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/557058:17978c17-b31d-41c2-a538-fcbb028ab603/8cc095c5-f5aa-4c94-9b4c-244e2041e8cb/128?size=24&s=24",
+      "16x16": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/557058:17978c17-b31d-41c2-a538-fcbb028ab603/8cc095c5-f5aa-4c94-9b4c-244e2041e8cb/128?size=16&s=16",
+      "32x32": "https://avatar-management--avatars.us-west-2.prod.public.atl-paas.net/557058:17978c17-b31d-41c2-a538-fcbb028ab603/8cc095c5-f5aa-4c94-9b4c-244e2041e8cb/128?size=32&s=32"
+    },
+    "displayName": "Bruno Morel",
+    "active": true
+  },
+  "components": [],
+  "issueTypes": [
+    {
+      "self": "https://nexiusocp.atlassian.net/rest/api/2/issuetype/10547",
+      "id": "10547",
+      "description": "A small, distinct piece of work.",
+      "iconUrl": "https://nexiusocp.atlassian.net/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
+      "name": "Task",
+      "subtask": false,
+      "avatarId": 10318
+    },
+    {
+      "self": "https://nexiusocp.atlassian.net/rest/api/2/issuetype/10548",
+      "id": "10548",
+      "description": "A collection of related bugs, stories, and tasks.",
+      "iconUrl": "https://nexiusocp.atlassian.net/secure/viewavatar?size=medium&avatarId=10307&avatarType=issuetype",
+      "name": "Epic",
+      "subtask": false,
+      "avatarId": 10307
+    },
+    {
+      "self": "https://nexiusocp.atlassian.net/rest/api/2/issuetype/10549",
+      "id": "10549",
+      "description": "Subtasks track small pieces of work that are part of a larger task.",
+      "iconUrl": "https://nexiusocp.atlassian.net/secure/viewavatar?size=medium&avatarId=10316&avatarType=issuetype",
+      "name": "Subtask",
+      "subtask": true,
+      "avatarId": 10316
+    }
+  ],
+  "assigneeType": "UNASSIGNED",
+  "versions": [],
+  "name": "TEST",
+  "roles": {
+    "atlassian-addons-project-access": "https://nexiusocp.atlassian.net/rest/api/2/project/13029/role/10736",
+    "Administrator": "https://nexiusocp.atlassian.net/rest/api/2/project/13029/role/10733",
+    "Viewer": "https://nexiusocp.atlassian.net/rest/api/2/project/13029/role/10735",
+    "Member": "https://nexiusocp.atlassian.net/rest/api/2/project/13029/role/10734"
+  },
+  "avatarUrls": {
+    "48x48": "https://nexiusocp.atlassian.net/secure/projectavatar?pid=13029&avatarId=11418",
+    "24x24": "https://nexiusocp.atlassian.net/secure/projectavatar?size=small&s=small&pid=13029&avatarId=11418",
+    "16x16": "https://nexiusocp.atlassian.net/secure/projectavatar?size=xsmall&s=xsmall&pid=13029&avatarId=11418",
+    "32x32": "https://nexiusocp.atlassian.net/secure/projectavatar?size=medium&s=medium&pid=13029&avatarId=11418"
+  },
+  "projectTypeKey": "software",
+  "simplified": true,
+  "style": "next-gen",
+  "isPrivate": false,
+  "properties": {},
+  "entityId": "8d9d13c9-2d23-459f-a318-eff95af10d4b",
+  "uuid": "8d9d13c9-2d23-459f-a318-eff95af10d4b"
+}
