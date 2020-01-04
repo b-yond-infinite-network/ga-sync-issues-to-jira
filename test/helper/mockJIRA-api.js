@@ -2,7 +2,36 @@ const nock 			= require('nock')
 
 const filesystem  	= require( 'fs' )
 const path        	= require( 'path' )
+const callerSites   = require( "callsites" )
 const querystring	= require( 'querystring' )
+const merge 		= require( 'deepmerge' )
+
+
+function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, overrideForFiles ) {
+	const jiraBaseURL	= jiraBaseUrl
+	const basePrefix 	= '/rest/api/2/'
+	const mockDefaults = {
+		globalAuth:
+			( jiraUserEmail && jiraApiToken
+			  ? { user: jiraUserEmail, pass: jiraApiToken }
+			  : null )
+	}
+	// const callerSiteCaller = callerSites.default()[ 1 ].getFileName()
+	// const dirOfCaller    = path.dirname(callerSiteCaller || '' )
+	const absoluteDirPath = path.resolve( __dirname, 'rest-capture-jira/v2' )
+	
+	walkthroughDirectory( absoluteDirPath,
+						  false,
+						  ( nameFile, pathFile ) => {
+		if( overrideForFiles && overrideForFiles.hasOwnProperty( nameFile ) ){
+			const newMockData = merge( mockDefaults, overrideForFiles[ nameFile ] )
+			createMockEndpointFromFileName( 'jira', nameFile, pathFile, jiraBaseURL + basePrefix, newMockData )
+			return
+		}
+		
+		createMockEndpointFromFileName( 'jira', nameFile, pathFile, jiraBaseURL + basePrefix, mockDefaults )
+	} )
+}
 
 function walkthroughDirectory( directoryName, bRecursive, fnDoForEachFile ) {
     let filenamesOrDirectorynames = filesystem.readdirSync( directoryName )
@@ -37,7 +66,7 @@ function createMockEndpointFromFileName( endpointPrefix, nameFile, pathFile, jir
 								: filesystem.readFileSync( pathFile, 'utf8')
 	
 	const nameAsUriAndParams= path.basename( nameFile, fileExtension ).replace( endpointPrefix + '.', '' )
-	const matchOptions		= nameAsUriAndParams.match( /(?<captured>\.?(?<type>GET?|POST?|PUT?|PATCH?|DELETE?|COPY?)?(?:{{{(?<auth>.*)}}})?(?:{{(?<headers>.*)}})?(?:{(?<params>.*)})?(?:=(?<return>\d{3}))?)$/ )
+	const matchOptions		= nameAsUriAndParams.match( /(?<captured>\.?(?<type>GET?|POST?|PUT?|PATCH?|DELETE?|COPY?)?(?:{{{(?<auth>.*)}}})?(?:{{(?<headers>.*)}})?(?:{(?<params>.*)})?(?:->(?<body>[^=]*))?(?:=(?<return>\d{3}))?)$/ )
 	
 	const urisWithDoubleBar		= matchOptions.groups.captured
 								   ? nameAsUriAndParams
@@ -59,9 +88,14 @@ function createMockEndpointFromFileName( endpointPrefix, nameFile, pathFile, jir
 		overrideAuth:			matchOptions.groups.auth ? querystring.parse( matchOptions.groups.auth ) : null,
 		customHeaders: 			matchOptions.groups.headers,
 		customQueryParams: 		matchOptions.groups.params
-								  ? ( matchOptions.groups.params === '%'
-									  ? '%'
+								  ? ( matchOptions.groups.params === 'all'
+									  ? 'all'
 									  : querystring.parse( matchOptions.groups.params ) )
+								  : null,
+		customQueryBody: 		matchOptions.groups.body
+								  ? ( matchOptions.groups.body === 'all'
+									  ? 'all'
+									  : querystring.parse( matchOptions.groups.body ) )
 								  : null,
 		customReplyHeaders:		httpReplyHeaders,
 		overrideReplyStatus: 	matchOptions.groups.return ? parseInt( matchOptions.groups.return ) : null,
@@ -76,36 +110,59 @@ function createMockEndpointFromFileName( endpointPrefix, nameFile, pathFile, jir
 			  customAndOverride )
 }
 
-function mockCall( baseURL, mockDefaults, uriEndpoint, httpVerb, persistEndpoint, customAndOverride ){
-	const { overrideAuth, customHeaders, customQueryParams, customReplyHeaders, overrideReplyStatus, overrideReplyData } = customAndOverride
-	const httpHeaders = mockDefaults && mockDefaults.globalHeaders
-						? {...mockDefaults.globalHeaders, ...customHeaders }
+function mockCall( baseURL, mockData, uriEndpoint, httpVerb, persistEndpoint, customAndOverride ){
+	const { overrideAuth, customHeaders, customQueryParams, customQueryBody, customReplyHeaders, overrideReplyStatus, overrideReplyData } = customAndOverride
+	const httpHeaders = mockData && mockData.globalHeaders
+						? merge( mockData.globalHeaders, customHeaders )
 						: customHeaders
 
 	const httpBasicAuth = overrideAuth
 						  ? overrideAuth
-						  : ( mockDefaults ? mockDefaults.globalAuth : null )
+						  : ( mockData ? mockData.globalAuth : null )
 	
-	const httpQueryParams = customQueryParams === '%'
-							? '%'
-							: mockDefaults && mockDefaults.globalQueryParams
-							  ? {...mockDefaults.globalQueryParams, ...customQueryParams }
+	const httpQueryParams = customQueryParams === 'all'
+							? 'all'
+							: mockData && mockData.globalQueryParams
+							  ? merge( mockData.globalQueryParams, customQueryParams )
 							  : customQueryParams
 	
-	const httpReplyHeaders = mockDefaults && mockDefaults.globalReplyHeaders
-							 ? {...mockDefaults.globalReplyHeaders, ...customReplyHeaders }
-							 : customReplyHeaders
+	const httpQueryBody  = customQueryBody === 'all'
+							? 'all'
+							: mockData && mockData.globalQueryBody
+							  ? merge( mockData.globalQueryBody, customQueryBody )
+							  : customQueryBody
 	
-	const httpReplyStatus = overrideReplyStatus
-							? overrideReplyStatus
-							: ( mockDefaults ? mockDefaults.globalReplyStatus : 200 )
+	const httpReplyHeaders = mockData && mockData.httpReplyHeaders
+							 ? merge( customReplyHeaders, mockData.httpReplyHeaders )
+							 : mockData && mockData.globalReplyHeaders
+							   ? merge( mockData.globalReplyHeaders, customReplyHeaders )
+							   : customReplyHeaders
 	
-	const httpReplyData = overrideReplyData
-						  ? overrideReplyData
-						  : ( mockDefaults ? mockDefaults.globalReplyData : '' )
+	const httpReplyStatus = mockData && mockData.httpReplyStatus
+							? merge( overrideReplyStatus, mockData.httpReplyStatus )
+							: overrideReplyStatus
+							  ? overrideReplyStatus
+							  : ( mockData ? mockData.globalReplyStatus : 200 )
 	
-	const mockScope = nock( baseURL ).persist( persistEndpoint )
-									 .intercept( new RegExp( '/' + uriEndpoint + '$', 'i' ), httpVerb )
+	const httpReplyData = mockData && mockData.httpReplyData
+						  ? merge( overrideReplyData, mockData.httpReplyData )
+						  : overrideReplyData
+							? overrideReplyData
+							: ( mockData ? mockData.globalReplyData : '' )
+	
+	const httpBodyCheck = ( httpQueryBody && httpQueryBody === 'all' )
+						  ? /.*/
+						  : httpQueryBody
+	
+	let mockScope = null
+	
+	if( httpBodyCheck )
+		mockScope = nock( baseURL ).persist( persistEndpoint )
+								   .intercept( new RegExp( '/' + uriEndpoint + '$', 'i' ), httpVerb, httpBodyCheck )
+
+	else
+		mockScope = nock( baseURL ).persist( persistEndpoint )
+								   .intercept( new RegExp( '/' + uriEndpoint + '$', 'i' ), httpVerb )
 	
 	if( httpBasicAuth )
 		mockScope.basicAuth( httpBasicAuth )
@@ -113,7 +170,7 @@ function mockCall( baseURL, mockDefaults, uriEndpoint, httpVerb, persistEndpoint
 	if( httpHeaders )
 		mockScope.matchHeader( httpHeaders )
 	
-	if( httpQueryParams === '%' )
+	if( httpQueryParams === 'all' )
 		mockScope.query( true )
 	
 	else if( httpQueryParams )
@@ -122,20 +179,6 @@ function mockCall( baseURL, mockDefaults, uriEndpoint, httpVerb, persistEndpoint
 	mockScope.reply( httpReplyStatus, httpReplyData, httpReplyHeaders )
 }
 
-function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken  ) {
-	const jiraBaseURL	= jiraBaseUrl
-	const basePrefix 	= '/rest/api/2/'
-	const mockDefaults = {
-		globalAuth:
-			( jiraUserEmail && jiraApiToken
-			  ? { user: jiraUserEmail, pass: jiraApiToken }
-			  : null )
-	}
-	
-	walkthroughDirectory( __dirname + '/rest-capture-jira/v2', false, ( nameFile, pathFile ) => {
-		createMockEndpointFromFileName( 'jira', nameFile, pathFile, jiraBaseURL + basePrefix, mockDefaults )
-	})
-}
 
 
 module.exports.mockJIRACalls       = mockJIRACalls

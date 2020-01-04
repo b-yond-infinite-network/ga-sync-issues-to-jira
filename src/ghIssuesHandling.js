@@ -30,11 +30,6 @@ async function handleIssues( useSubtaskMode ) {
             return null
         }
 
-        let changedValues = { }
-        Object.entries( changeEvent.changes ).forEach( currentChangedAttribute => {
-            changedValues[ currentChangedAttribute ] = changeEvent.issue[ currentChangedAttribute ]
-        } )
-
         console.log( '-- retrieving all labels' )
         const issueDetails = changeEvent.issue
         if( !issueDetails.labels
@@ -66,7 +61,7 @@ async function handleIssues( useSubtaskMode ) {
         return {
             event:      changeEvent.action,
             jiraKeys:   jiraKeys,
-            changes:    changedValues,
+            changes:    changeEvent.changes,
             details:    issueDetails
         }
 

@@ -2,20 +2,20 @@
   "action": "edited",
   "changes": {
     "title": {
-      "from": "test"
+      "from": "A github Issue in Github"
     }
   },
   "issue": {
     "assignee": null,
     "assignees": [],
     "author_association": "CONTRIBUTOR",
-    "body": "test de bruno",
+    "body": "*You **can** combine them **multiple time**, if you **can** *\r\nOr __better _you can___",
     "closed_at": null,
     "comments": 0,
-    "comments_url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1/comments",
+    "comments_url": "https://fakegithub/repo/issues/1/comments",
     "created_at": "2019-10-28T21:43:35Z",
-    "events_url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1/events",
-    "html_url": "https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1",
+    "events_url": "https://fakegithub/repo/issues/1/events",
+    "html_url": "https://fakegithub/repo/issues/1",
     "id": 513574452,
     "labels": [
       {
@@ -24,18 +24,18 @@
         "id": 1652440629,
         "name": "TES-2",
         "node_id": "MDU6TGFiZWwxNjUyNDQwNjI5",
-        "url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/labels/TES-2"
+        "url": "https://fakegithub/repo/labels/TES-2"
       }
     ],
-    "labels_url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1/labels{/name}",
+    "labels_url": "https://fakegithub/repo/issues/1/labels{/name}",
     "locked": false,
     "milestone": null,
     "node_id": "MDU6SXNzdWU1MTM1NzQ0NTI=",
     "number": 1,
-    "repository_url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action",
+    "repository_url": "https://fakegithub",
     "state": "open",
-    "title": "test9",
+    "title": "A JIRA subtask",
     "updated_at": "2019-11-01T22:01:10Z",
-    "url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1"
+    "url": "https://fakegithub/repo/issues/1"
   }
 }

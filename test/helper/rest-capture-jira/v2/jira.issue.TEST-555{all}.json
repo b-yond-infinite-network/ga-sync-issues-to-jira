@@ -1,0 +1,36 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "47426",
+  "self": "https://fakejira/rest/api/3/issue/47426",
+  "key": "TEST-555",
+  "fields": {
+    "summary": "A newly created subtask",
+    "description": null,
+    "comment": {
+      "comments": [],
+      "maxResults": 0,
+      "total": 0,
+      "startAt": 0
+    },
+    "priority": {
+      "self": "https://fakejira/rest/api/3/priority/10001",
+      "iconUrl": "https://fakejira/images/icons/priorities/high.svg",
+      "name": "Major",
+      "id": "10001"
+    },
+    "status": {
+      "self": "https://fakejira/rest/api/3/status/11002",
+      "description": "",
+      "iconUrl": "https://fakejira/",
+      "name": "To Do",
+      "id": "11002",
+      "statusCategory": {
+        "self": "https://fakejira/rest/api/3/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    }
+  }
+}

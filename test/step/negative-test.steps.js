@@ -1,3 +1,5 @@
+const merge 		= require( 'deepmerge' )
+
 const { Before, After, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
 
 const { mockGHActionsIssue, mockNonGHActionsIssue }     = require( '../helper/mockGH-actions' )
@@ -13,20 +15,28 @@ let jiraApiToken        = 'testAPITOKEN'
 
 const { CaptureConsole } = require('@aoberoi/capture-console' )
 const captureConsole = new CaptureConsole()
+const oldLog            = console.log
 
-let consoleOutput = []
+const mockLog           = ( function( ) {
+    const consoleLogs = []
+    const oldLog = console.log
+    console.log = function ( message ) {
+        consoleLogs.push( message )
+        oldLog.apply( console, arguments )
+    }
+    return consoleLogs
+} )
 
 
-Before( () => {
+
+Before( ( ) => {
     actionProjectName   = 'TEST'
     actionIssueType     = 'Subtask'
-    overloadValues      = null
+    overloadValues      = { "changes": { "title": { "from": "A github Issue in Github" } } }
     
     jiraBaseURL         = 'fakejira'
     jiraUserEmail       = 'testuser@test.domain'
     jiraApiToken        = 'testAPITOKEN'
-    
-    consoleOutput       = []
 } )
 
 Given( 'I specify an empty project', async () => {
@@ -39,15 +49,18 @@ Given( /^I specify project '(.*)'$/, async ( projectName ) => {
 
 
 And( /^the action triggered is '(.*)'$/, async ( eventTypeDescription ) => {
-    overloadValues = { ...overloadValues, ...{ action: eventTypeDescription } }
+    overloadValues = merge( overloadValues, { action: eventTypeDescription } )
 })
 
 And(/^the action has no change$/, () => {
-    overloadValues = { ...overloadValues, ...{ changes: null } }
+    overloadValues = merge( overloadValues, { changes: null } )
 })
 
 And(/^the label is (.*)$/,  ( labelForIssue ) => {
-    overloadValues = { ...overloadValues, ...{ "issue": { "labels": [ { "name": labelForIssue } ] } } }
+    if( labelForIssue !== '' )
+        overloadValues = merge( overloadValues, { "issue": { "labels": [ { "name": labelForIssue } ] } } )
+    else
+        overloadValues = merge( overloadValues, { "issue": { "labels": [ ] } } )
 })
 
 And( /^I specify a wrong JIRA API URL$/, async ( projectName ) => {
@@ -67,8 +80,16 @@ And( 'my JIRA credentials are correct', () => {
     mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken )
 } )
 
-And( 'the issue in GITHUB has the same title, description and priority in JIRA', () => {
-
+And( /the issue in GITHUB has the same title, body and comments than the labelled '(.*)' issue in JIRA$/,  ( labelForIssue ) => {
+    const valueInTest123 = require( "../helper/rest-capture-jira/v2/jira.issue.TEST-456{all}" )
+    overloadValues = merge( overloadValues,
+                            { "issue":
+                                    {
+                                        "title": valueInTest123[ 'fields' ][ 'summary' ],
+                                        "body" : valueInTest123[ 'fields' ][ 'description' ],
+                                        "labels": [ { "name": labelForIssue } ],
+                                        "number" : 1
+                                    } } )
 } )
 
 When( /^the action is not triggered from a github action$/, function () {
@@ -79,55 +100,63 @@ When( /^the action is triggered$/, async (  ) => {
     mockGHActionsIssue( actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadValues )
 })
 
-When( /^the title, assignee and comments are the same$/, function () {
-
-} )
-
 
 Then(/^we detect it's not an action and exit successfully$/, async () => {
-    captureConsole.startCapture()
-    
+    const consoleLogsOutput = mockLog()
     const syncEngine = require('../../src/sync')
     
     await syncEngine()
+    console.log = oldLog
     
-    captureConsole.stopCapture()
-    consoleOutput = captureConsole.getCapturedText()
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.indexOf( 'Ending Action' ) ) ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) ).not.toEqual( -1 )
 } )
 
-Then(/^we do nothing, skip the action and exit successfully$/, async () => {
-    captureConsole.startCapture()
+Then(/^we do nothing, skip the action, exit successfully and write '([^']*)' as a warning in the logs$/, async ( warningToFindInLogs ) => {
+    const consoleLogsOutput = mockLog()
     
     const syncEngine = require('../../src/sync')
 
     await syncEngine()
+    console.log = oldLog
     
-    captureConsole.stopCapture()
-    consoleOutput = captureConsole.getCapturedText()
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.indexOf( '==> action skipped ' ) ) ) ).not.toEqual( -1 )
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.indexOf( 'Ending Action' ) ) ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action skipped' ) !== - 1 ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( warningToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
 } )
 
-Then(/^we fail the action and exit with error '(.*)'$/, async ( errorContent ) => {
+Then(/^we fail the action, exit with error '(.*)' and write "(.*)" in the logs$/, async ( errorContent, messageToFindInLogs ) => {
     captureConsole.startCapture()
+    const consoleLogsOutput = mockLog()
     
     const syncEngine = require('../../src/sync')
     
     await syncEngine()
+    console.log     = oldLog
     
-    const processexit = process.stdout
     captureConsole.stopCapture()
-    consoleOutput = captureConsole.getCapturedText()
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.startsWith( `::error::"${ errorContent }"` ) ) ) ).not.toEqual( -1 )
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.indexOf( 'Ending Action' ) ) ) ).not.toEqual( -1 )
+    const consoleErrors = captureConsole.getCapturedText()
+    expect( consoleErrors.findIndex( currentOutput => currentOutput.startsWith( `::error::"${ errorContent }"` ) ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
 } )
 
-And( /^write '([^"]*)' in the logs$/, ( messageToFindInLogs ) => {
-    expect( consoleOutput.findIndex( ( currentOutput ) => ( currentOutput.indexOf( messageToFindInLogs ) !== -1 ) ) ).not.toEqual( -1 )
+Then(/^we finish the action successfully and write '([^']*)' as an info in the logs$/, async ( warningToFindInLogs ) => {
+    const consoleLogsOutput = mockLog()
+    
+    const syncEngine = require('../../src/sync')
+    
+    await syncEngine()
+    console.log = oldLog
+    
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) !== - 1 ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( warningToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
 } )
 
-After(() => ( unmockJIRACalls() ) )
+
+After(() => {
+    unmockJIRACalls()
+} )
 
 
 Fusion( '../feature/Negative.feature' )

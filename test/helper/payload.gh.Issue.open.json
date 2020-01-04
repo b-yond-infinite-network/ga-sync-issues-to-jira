@@ -1,11 +1,10 @@
 {
   "action": "opened",
-  "changes": {
-    "title": {
-      "from": "test"
-    }
-  },
   "issue": {
+    "title": "A JIRA subtask",
+    "body": "*You **can** combine them **multiple time**, if you **can** *\r\nOr __better _you can___",
+    "comments": 0,
+    "comments_url": "https://fakegithub/repo/issues/1/comments",
     "number": 10,
     "labels": [
       {

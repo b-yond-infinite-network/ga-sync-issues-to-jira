@@ -1,0 +1,82 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "78901",
+  "self": "https://fakejira/rest/api/2/issue/78901",
+  "key": "TEST-999",
+  "fields": {
+    "summary": "A JIRA story synched with GITHUB",
+    "issuetype": {
+      "self": "https://fakejira/rest/api/2/issuetype/10547",
+      "id": "10547",
+      "description": "A small, distinct piece of work.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
+      "name": "Task",
+      "subtask": false,
+      "avatarId": 10318,
+      "entityId": "8a1f4add-3a58-4efd-a7fd-8e0a5d31bf77"
+    },
+    "attachment": [
+      {
+        "self": "https://fakejira/rest/api/2/attachment/32087",
+        "id": "32087",
+        "filename": "animation-fireworks",
+        "author": {
+          "self": "https://fakejira/rest/api/2/user?accountId=1233444555",
+          "name": "test",
+          "key": "test",
+          "accountId": "1233444555",
+          "emailAddress": "test@test",
+          "avatarUrls": {
+            "48x48": "https://avatarurl",
+            "24x24": "https://avatarurl",
+            "16x16": "https://avatarurl",
+            "32x32": "https://avatarurl"
+          },
+          "displayName": "Test User",
+          "active": true,
+          "timeZone": "America/Montreal",
+          "accountType": "atlassian"
+        },
+        "created": "2019-12-31T16:28:40.498-0500",
+        "size": 587879,
+        "mimeType": "binary/octet-stream",
+        "content": "https://fakejira/secure/attachment/32087/animation-fireworks"
+      }
+    ],
+    "subtasks": [ ],
+    "duedate": null,
+    "description": "A good to have a description\n\nWith some *formatting*\n\n+_And other stuff_+",
+    "votes": {
+      "self": "https://fakejira/rest/api/2/issue/TEST-999/votes",
+      "votes": 0,
+      "hasVoted": false
+    },
+    "comment": {
+      "comments": [],
+      "maxResults": 0,
+      "total": 0,
+      "startAt": 0
+    },
+    "priority": {
+      "self": "https://fakejira/rest/api/2/priority/10001",
+      "iconUrl": "https://fakejira/images/icons/priorities/high.svg",
+      "name": "Major",
+      "id": "10001"
+    },
+    "labels": [],
+    "status": {
+      "self": "https://fakejira/rest/api/2/status/11002",
+      "description": "",
+      "iconUrl": "https://fakejira/",
+      "name": "To Do",
+      "id": "11002",
+      "statusCategory": {
+        "self": "https://fakejira/rest/api/2/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    }
+  }
+}

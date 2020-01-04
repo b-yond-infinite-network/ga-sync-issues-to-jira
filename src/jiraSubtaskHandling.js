@@ -62,15 +62,16 @@ async function handleSubtask( issueChanges, useSubtaskMode ) {
                 const summaryToLookFor = ( issueChanges.event === 'edited' && 'title' in issueChanges.changes
                                            ? issueChanges.changes.title.from
                                            : issueChanges.details[ 'title' ] )
-                const foundSubtask = await findSubtaskWithKeysOrTitle( jiraSession, currentJIRAIssueKey, labelledJIRASubtasksKey, summaryToLookFor )
+                const foundSubtask = findSubtaskWithKeysOrTitle( foundJIRAIssue, labelledJIRASubtasksKey, summaryToLookFor )
                 if( foundSubtask )
                     return foundSubtask
 
-                return await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookFor )
+                const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookFor )
+                return findIssue( jiraSession, createdIssue.key )
             }
 
             //we're not in subtask mode, so we're replacing whatever info we got from the labelled story itself
-            return currentJIRAIssueKey
+            return foundJIRAIssue
         } ) )
         
         return subtaskOrIssueToUpdate.filter( currentSubtaskOrIssueToUpdate => currentSubtaskOrIssueToUpdate !== null )
@@ -128,19 +129,24 @@ async function handleSubtask( issueChanges, useSubtaskMode ) {
         catch( issueError ) {
             manageJIRAAPIError( issueError,
                                 jiraSession,
-                                `### issue ${ jiraIssueKey } is inaccessible in JIRA\n==> skipping label ${ jiraIssueKey }` )
+                                `### issue ${ jiraIssueKey } is inaccessible in JIRA\n==> action skipped for label ${ jiraIssueKey }` )
         }
     }
     
-    async function findSubtaskWithKeysOrTitle( jiraSession, currentJIRAIssueKey, labelledJIRASubtasksKey, titleToLookFor ){
+    function findSubtaskWithKeysOrTitle( jiraParentIssue, labelledJIRASubtasksKey, titleToLookFor ){
         // we're in subtask mode, so we want to find either:
         // - a label in the issue that starts with 'subXXXX-XXX'
         // - the story with the same title
-        const jiraSubtasks = await findAllSubtasks( jiraSession, currentJIRAIssueKey )
+        const jiraSubtasks = findAllSubtasks( jiraParentIssue )
+        if( !jiraSubtasks
+            || jiraSubtasks.length === 0 )
+            return null
     
-        const foundWithKey = findSubtaskWithKey( jiraSubtasks, labelledJIRASubtasksKey )
-        if( foundWithKey )
-            return foundWithKey
+        if( labelledJIRASubtasksKey.length > 0 ){
+            const foundWithKey = findSubtaskWithKey( jiraSubtasks, labelledJIRASubtasksKey )
+            if( foundWithKey )
+                return foundWithKey
+        }
     
         const foundWithTitle = findSubtaskWithTitle( jiraSubtasks, titleToLookFor )
         if( foundWithTitle )
@@ -149,27 +155,25 @@ async function handleSubtask( issueChanges, useSubtaskMode ) {
         return null
     }
     
-    async function findAllSubtasks( jiraSession, jiraParentIssueKey ){
-        console.log( `-- looking for subtask of JIRA Issue ${ jiraParentIssueKey }` )
-        const jiraParentIssue = await jiraSession.issue.getIssue( { issueKey: jiraParentIssueKey, fields: ['subtasks'] } )
-        if( !jiraParentIssue[ "subtasks" ]
-            || jiraParentIssue[ "subtasks" ].length() ) {
+    function findAllSubtasks( jiraParentIssue ){
+        console.log( `-- looking for subtask of JIRA Issue ${ jiraParentIssue.key }` )
+        if( !jiraParentIssue.fields[ "subtasks" ]
+            || jiraParentIssue.fields[ "subtasks" ].length === 0 ) {
             // no subtask found means we will create one
-            console.log( '----! no subtasks found, creating a new one' )
+            console.log( '----! no subtasks found, we will be creating a new one' )
             return null
         }
-        
-        return jiraParentIssue[ "subtasks" ]
+        return jiraParentIssue.fields[ "subtasks" ]
     }
     
     function findSubtaskWithKey( jiraSubtasksIssuesArray, githubLabelForSubtaskKeyArray ){
-        console.log( `--- looking for one with key inside ${ JSON.stringify(  githubLabelForSubtaskKeyArray ) }` )
+        console.log( `--- looking for one with key inside "${ JSON.stringify(  githubLabelForSubtaskKeyArray ) }"` )
         //filtering subtask to find a key that is in the list of subtask Labels in GITHUB
         return jiraSubtasksIssuesArray.find( currentSubtask => githubLabelForSubtaskKeyArray.includes( currentSubtask.key ) )
     }
     
     function findSubtaskWithTitle( jiraSubtasksIssuesArray, summaryToFind ){
-        console.log( `--- looking for one with summary ${ summaryToFind }` )
+        console.log( `--- looking for one with summary "${ summaryToFind }"` )
         //filtering subtask to find our title
         const arrFoundSubtasksIssueWithTitle = jiraSubtasksIssuesArray.filter( currentJIRASubtaskObject => {
             return currentJIRASubtaskObject.fields.summary && currentJIRASubtaskObject.fields.summary === summaryToFind
@@ -184,22 +188,6 @@ async function handleSubtask( issueChanges, useSubtaskMode ) {
             console.log( '----! found more than one subtask with our title, returning the first' )
     
         return arrFoundSubtasksIssueWithTitle[ 0 ]
-    }
-    
-    async function findGHIssueInSubtasks( jiraSession, storyKey, summaryToFind ){
-        console.log( `-- looking for subtask of story ${ storyKey } with summary ${ summaryToFind }` )
-        const parentIssue = await jiraSession.issue.getIssue({ issueKey: storyKey, fields: ['subtasks'] }) //, fields: 'sub-tasks'
-        console.log( `--- found issue infos with subtasks: ${ JSON.stringify( parentIssue[ "subtasks" ] ) }` )
-        if( !parentIssue[ "subtasks" ]
-            || parentIssue[ "subtasks" ].length() ) {
-            console.log( `---! it has no subtasks` )
-            return null
-        }
-
-        return parentIssue[ "sub-tasks" ].find( async currentSubTask => {
-            const subtaskData = await jiraSession.issue.getIssue({ issueKey: currentSubTask.outwardIssue.key, properties: 'summary' })
-            return subtaskData.summary === summaryToFind
-        } )
     }
 
     async function createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeNameToUse, jiraParentIssueKey, title ) {

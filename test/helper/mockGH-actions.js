@@ -1,8 +1,11 @@
-const nock = require('nock')
-const path = require('path')
+
+const merge 		= require( 'deepmerge' )
+const nock          = require('nock')
+const path          = require('path')
 
 function setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, payloadToLoad ){
     // ACTION PROPERTIES
+    process.env['INPUT_SUBTASK_MODE']           = true
     // the key (prefix) used by Jira for the project
     process.env['INPUT_JIRA_PROJECTKEY']        = jiraKey
     // the issue type to use to track the Github Issues
@@ -34,7 +37,14 @@ function mockGHActionsIssue( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail,
     const github            = require('@actions/github')
     github.context.payload  = require( process.env['GITHUB_EVENT_PATH'] )
     if( overwriteContextPayloadValues ){
-        github.context.payload = {...github.context.payload, ...overwriteContextPayloadValues }
+        github.context.payload = merge( github.context.payload,
+                                        overwriteContextPayloadValues,
+                                        { arrayMerge: (destinationArray, sourceArray, options) => {
+                                            if( sourceArray && sourceArray.length === 0 )
+                                                return sourceArray
+                                            else
+                                                return merge( destinationArray, sourceArray )
+                                        } } )
     }
     
     

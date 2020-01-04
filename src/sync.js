@@ -1,30 +1,89 @@
-const core              = require('@actions/core')
+const core              = require( '@actions/core' )
 
-const handleIssues      = require('./ghIssuesHandling')
-const handleSubtask     = require('./jiraSubtaskHandling')
+const handleIssues          = require( './ghIssuesHandling' )
+const handleSubtask         = require( './jiraSubtaskHandling' )
+const { jiraUpdateIssue }   = require( './jiraUpdate' )
 
 async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput('SUBTASK_MODE')
-        const issueEventTriggered = await handleIssues()
 
+        const issueEventTriggered = await handleIssues()
         if (!issueEventTriggered) {
             console.log('Ending Action')
             return
         }
 
-        const subtaskOrIssueToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
-        if( !subtaskOrIssueToUpdate ){
+        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
+        if( !subtasksOrIssuesToUpdate
+            || subtasksOrIssuesToUpdate.length === 0 ){
             console.log('Ending Action')
             return
         }
-        console.log( `Updating JIRA Issue: ${ JSON.stringify( subtaskOrIssueToUpdate ) }` )
     
+        for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
+            console.log( `Updating JIRA Issue: ${ JSON.stringify( currentSubtaskOrIssue.key ) }` )
+            const changeToPush =  listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
+            if( Object.keys( changeToPush ).length <= 0 ){
+                console.log( `-- all changes are already synced between issue#${ issueEventTriggered.details[ 'number' ] } in GITHUB and issue ${ currentSubtaskOrIssue.key } in JIRA` )
+                break
+            }
+            
+            const updateResult = await jiraUpdateIssue( currentSubtaskOrIssue, changeToPush )
+            if( updateResult ){
+                console.log( `--- updated: ${ JSON.stringify( changeToPush ) }` )
+            }
+        }
+        
+        console.log( `==> action success` )
+        console.log( `Action Finished` )
         core.setOutput('time', new Date().toTimeString() )
         
     } catch ( error ) {
         core.setFailed( error.message )
     }
+}
+
+function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange ){
+    //TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
+    const changes = {}
+    
+    if( issueChangeTriggered.event === 'open'
+        || issueChangeTriggered.event === 'edited'
+        || issueChangeTriggered.event === 'reopened'
+        || issueChangeTriggered.event === 'labeled' ){
+        if( issueChangeTriggered.details.title
+            && subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
+            changes.summary = issueChangeTriggered.details.title
+    
+        if( issueChangeTriggered.details.body
+            && subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body )
+            changes.description = issueChangeTriggered.details.body
+    }
+
+    // if( issueChangeTriggered.event === 'edited' ){
+    //     if( 'title' in issueChangeTriggered.changes )
+    //         changes.summary = issueChangeTriggered.details.title
+    //
+    //
+    //     if( 'description' in issueChangeTriggered.changes )
+    //         changes.body = issueChangeTriggered.changes.description
+    // }
+    
+    
+    if( issueChangeTriggered.event === 'deleted' ) {
+        changes.delete = true
+    }
+    
+    if( issueChangeTriggered.event === 'closed' ) {
+        changes.closed = true
+    }
+    
+    return changes
+}
+
+async function updateJIRAFromGITHUB( ){
+
 }
 
 module.exports = syncJiraWithGH
