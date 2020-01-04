@@ -82,8 +82,4 @@ function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange
     return changes
 }
 
-async function updateJIRAFromGITHUB( ){
-
-}
-
 module.exports = syncJiraWithGH

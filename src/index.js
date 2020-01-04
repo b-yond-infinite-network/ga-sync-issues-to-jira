@@ -1,4 +1,4 @@
-const syncEngine = require( './sync' )
+const syncEngine = require( 'sync' )
 
 syncEngine.syncJiraWithGH()
 
