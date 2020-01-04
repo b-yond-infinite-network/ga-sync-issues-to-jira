@@ -86,7 +86,7 @@ When( /^the action triggers$/,  (  ) => {
 Then(/^we upgrade JIRA and exit successfully$/, async ( messageToFindInLogs ) => {
 	const consoleLogsOutput = mockLog()
 	
-	const { syncJiraWithGH } = require( './sync' )
+	const { syncJiraWithGH } = require( '../../src/sync' )
 	await syncJiraWithGH()
 	
 	console.log = oldLog

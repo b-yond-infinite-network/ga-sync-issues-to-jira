@@ -104,7 +104,7 @@ When( /^the action is triggered$/, async (  ) => {
 Then(/^we detect it's not an action and exit successfully$/, async () => {
     const consoleLogsOutput = mockLog()
     
-    const { syncJiraWithGH } = require( './sync' )
+    const { syncJiraWithGH } = require( '../../src/sync' )
     await syncJiraWithGH()
     
     console.log = oldLog
@@ -115,7 +115,7 @@ Then(/^we detect it's not an action and exit successfully$/, async () => {
 Then(/^we do nothing, skip the action, exit successfully and write '([^']*)' as a warning in the logs$/, async ( warningToFindInLogs ) => {
     const consoleLogsOutput = mockLog()
     
-    const { syncJiraWithGH } = require( './sync' )
+    const { syncJiraWithGH } = require( '../../src/sync' )
     await syncJiraWithGH()
     
     console.log = oldLog
@@ -129,7 +129,7 @@ Then(/^we fail the action, exit with error '(.*)' and write "(.*)" in the logs$/
     captureConsole.startCapture()
     const consoleLogsOutput = mockLog()
     
-    const { syncJiraWithGH } = require( './sync' )
+    const { syncJiraWithGH } = require( '../../src/sync' )
     await syncJiraWithGH()
     
     console.log     = oldLog
@@ -144,7 +144,7 @@ Then(/^we fail the action, exit with error '(.*)' and write "(.*)" in the logs$/
 Then(/^we finish the action successfully and write '([^']*)' as an info in the logs$/, async ( warningToFindInLogs ) => {
     const consoleLogsOutput = mockLog()
     
-    const { syncJiraWithGH } = require( './sync' )
+    const { syncJiraWithGH } = require( '../../src/sync' )
     await syncJiraWithGH()
     
     console.log = oldLog
