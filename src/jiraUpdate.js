@@ -11,9 +11,9 @@ async function jiraUpdateIssue( subtaskOrIssueToUpdate, updateToApply ) {
 												   email: core.getInput('JIRA_USEREMAIL'),
 												   api_token: core.getInput('JIRA_APITOKEN'),
 											   } } )
-		if( updateToApply.description ){
-			updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
-		}
+		// if( updateToApply.description ){
+		// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
+		// }
 		
 		return await jiraSession.issue.editIssue( {
 													  issueKey: 	subtaskOrIssueToUpdate.key,
