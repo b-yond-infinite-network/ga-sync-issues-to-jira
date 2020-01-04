@@ -86,9 +86,9 @@ When( /^the action triggers$/,  (  ) => {
 Then(/^we upgrade JIRA and exit successfully$/, async ( messageToFindInLogs ) => {
 	const consoleLogsOutput = mockLog()
 	
-	const syncEngine = require('../../src/sync')
+	const { syncJiraWithGH } = require( './sync' )
+	await syncJiraWithGH()
 	
-	await syncEngine()
 	console.log = oldLog
 	
 	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) ) ).not.toEqual( -1 )

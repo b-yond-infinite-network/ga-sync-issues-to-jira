@@ -39,8 +39,10 @@ async function syncJiraWithGH() {
         console.log( `Action Finished` )
         core.setOutput('time', new Date().toTimeString() )
         
+        return 0
     } catch ( error ) {
         core.setFailed( error.message )
+        return 1
     }
 }
 
@@ -82,4 +84,4 @@ function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange
     return changes
 }
 
-module.exports = syncJiraWithGH
+module.exports.syncJiraWithGH = syncJiraWithGH
