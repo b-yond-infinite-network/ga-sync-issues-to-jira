@@ -26,7 +26,7 @@ async function handleIssues( useSubtaskMode ) {
 
         console.log( '-- retrieving all changes' )
         if( !changeEvent.changes ){
-            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ changeEvent }` )
+            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ JSON.stringify( changeEvent ) }` )
             return null
         }
 
