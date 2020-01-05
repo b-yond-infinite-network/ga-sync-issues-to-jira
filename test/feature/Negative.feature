@@ -18,9 +18,10 @@ Feature: Negative testing
 
   Scenario: Do nothing if the github action has no changes
     Given I specify project 'TEST'
+    And the action triggered is 'edited'
     And the action has no change
     When the action is triggered
-    Then we do nothing, skip the action, exit successfully and write '==> action skipped for event opened due to empty change set' as a warning in the logs
+    Then we do nothing, skip the action, exit successfully and write '==> action skipped for event edited due to empty change set' as a warning in the logs
 
   Scenario Outline: Do nothing if I used <LabelType>
     Given I specify project 'TEST'
