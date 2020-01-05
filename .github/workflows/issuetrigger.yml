@@ -3,9 +3,8 @@ name: test-issuetrigger
 on:
   issues:
     types: [opened, edited, closed, reopened, deleted, labeled, unlabeled]
-
-#  issue_comment:
-#    types: [created, deleted]
+#  label:
+  issue_comment:
 
 jobs:
   test:

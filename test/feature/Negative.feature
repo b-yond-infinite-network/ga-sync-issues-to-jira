@@ -14,7 +14,7 @@ Feature: Negative testing
     Given I specify project 'TEST'
     And the action triggered is 'donotexist'
     When the action is triggered
-    Then we do nothing, skip the action, exit successfully and write 'for event donotexist' as a warning in the logs
+    Then we do nothing, skip the action, exit successfully and write '==> action skipped for unsupported event donotexist' as a warning in the logs
 
   Scenario: Do nothing if the github action has no changes
     Given I specify project 'TEST'

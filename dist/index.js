@@ -20127,13 +20127,13 @@ async function handleIssues( useSubtaskMode ) {
             core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
 
         if( actionToConsider.indexOf( changeEvent.action ) === -1 ){
-            console.log( `==> action skipped for event ${ changeEvent.action }` )
+            console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
             return null
         }
 
         console.log( '-- retrieving all changes' )
         if( !changeEvent.changes ){
-            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set` )
+            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ changeEvent }` )
             return null
         }
 
