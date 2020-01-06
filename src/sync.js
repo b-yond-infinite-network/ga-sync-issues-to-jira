@@ -8,8 +8,9 @@ async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput('SUBTASK_MODE')
 
-        const issueEventTriggered = await handleIssues()
+        const issueEventTriggered = await handleIssues( useSubtaskMode )
         if (!issueEventTriggered) {
+            console.log( `--! no change to be handled` )
             console.log('Ending Action')
             return
         }
@@ -17,6 +18,7 @@ async function syncJiraWithGH() {
         const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
         if( !subtasksOrIssuesToUpdate
             || subtasksOrIssuesToUpdate.length === 0 ){
+            console.log( `--! no subtask or issue to upgrade found at all` )
             console.log('Ending Action')
             return
         }
@@ -55,10 +57,12 @@ function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange
         || issueChangeTriggered.event === 'reopened'
         || issueChangeTriggered.event === 'labeled' ){
         if( issueChangeTriggered.details.title
+            && subtaskOrIssueToChange.fields
             && subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
             changes.summary = issueChangeTriggered.details.title
     
         if( issueChangeTriggered.details.body
+            && subtaskOrIssueToChange.fields
             && subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body )
             changes.description = issueChangeTriggered.details.body
     }

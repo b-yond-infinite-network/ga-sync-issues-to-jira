@@ -22,15 +22,15 @@ Feature: Jira synchronization
     And the title is now set to 'A new title' in GITHUB
     And the summary was set to 'An old title' in JIRA
     When the action triggers
-    Then we upgrade JIRA and exit successfully
-
+    Then we upgrade JIRA, write '--- updated: {"summary":"A new title"' in the logs and exit successfully
+#
   Scenario: Update body/description when they differ
     Given The action triggered is 'edited' with project 'TEST', issue type 'Subtask' and label 'TEST-123'
     And the change is set on 'body' with a from value of 'That would be good to have a description' in GITHUB
     And the body is now set to 'Nice description' in GITHUB
     And the description was set to 'An old description' in JIRA
     When the action triggers
-    Then we upgrade JIRA and exit successfully
+    Then we upgrade JIRA, write '--- updated: {"description":"Nice description"}' in the logs and exit successfully
 
   Scenario: Create a new subtask in JIRA when there's none with the same title
     Given The action triggered is 'edited' with project 'TEST', issue type 'Subtask' and label 'TEST-999'
@@ -38,7 +38,13 @@ Feature: Jira synchronization
     And the body is now set to 'Nice description with _some **formatting**_' in GITHUB
     And the description was set to 'An old description' in JIRA
     When the action triggers
-    Then we upgrade JIRA and exit successfully
+    Then we upgrade JIRA, write 'Creating JIRA Issue of type : "Subtask" with title: A JIRA subtask' in the logs and exit successfully
+
+  Scenario: Attach to a specific JIRA Issue when the label is prefixed with 'sub'
+    Given The action triggered is 'labeled' with project 'TEST', issue type 'Subtask' and label 'TEST-999'
+    And we add a label 'subTEST-456'
+    When the action triggers
+    Then we upgrade JIRA, write 'Adding sub-ed JIRA Issue TEST-456 to the list of JIRA Issues to upgrade' in the logs and exit successfully
 
 #  Scenario: Update the title of the subtask when it's changed
 #    Given I'm using the project 'TEST'

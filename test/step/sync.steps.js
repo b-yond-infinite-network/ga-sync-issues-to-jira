@@ -78,12 +78,17 @@ And( /^the comments were set to '(.*)' in JIRA$/, commentContentinJIRA => {
 																   { "httpReplyData": { "fields": { "comments": commentContentinJIRA } } } )
 } )
 
+
+And( /^we add a label '(.*)'$/, labelToAdd => {
+	overloadGITHUBValues 	= { "issue" : { "labels" : [ { "name": labelToAdd } ] } }
+} )
+
 When( /^the action triggers$/,  (  ) => {
 	mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken, overloadJIRAValues )
 	mockGHActionsIssue( actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
 })
 
-Then(/^we upgrade JIRA and exit successfully$/, async ( messageToFindInLogs ) => {
+Then(/^we upgrade JIRA, write '(.*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
 	const consoleLogsOutput = mockLog()
 	
 	const { syncJiraWithGH } = require( '../../src/sync' )
@@ -91,6 +96,7 @@ Then(/^we upgrade JIRA and exit successfully$/, async ( messageToFindInLogs ) =>
 	
 	console.log = oldLog
 	
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) ) ).not.toEqual( -1 )
 	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) ) ).not.toEqual( -1 )
 	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
 } )

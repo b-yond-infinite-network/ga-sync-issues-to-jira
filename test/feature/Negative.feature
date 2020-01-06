@@ -69,7 +69,7 @@ Feature: Negative testing
     And my JIRA credentials are correct
     When the action is triggered
     Then we do nothing, skip the action, exit successfully and write '==> action skipped for label TEST-DONOTEXIST' as a warning in the logs
-#
+
   Scenario: Do nothing if the data JIRA is the same in Github
     Given I specify project 'TEST'
     And the issue in GITHUB has the same title, body and comments than the labelled 'TEST-123' issue in JIRA
