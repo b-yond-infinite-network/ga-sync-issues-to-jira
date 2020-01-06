@@ -2,8 +2,8 @@
 
 
 <p align="left">
-  <a href="https://github.com/actions/javascript-action/workflows/test-local"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/workflows/test-local/badge.svg"></a>
-  <a href="https://github.com/actions/javascript-action/workflows/test-issuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/workflows/test-issuetrigger/badge.svg"></a>
+  <a href="https://github.com/actions/javascript-action/workflows/local"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira@master/workflows/local/badge.svg"></a>
+  <a href="https://github.com/actions/javascript-action/workflows/issuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira@master/workflows/issuetrigger/badge.svg"></a>
 </p>
 
 # Using in your repo
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@master
+      - uses: b-yond-infinite-network/ga-sync-issues-to-jira@master
         with:
           JIRA_PROJECTKEY:  TEST
           JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
@@ -42,7 +42,7 @@ For all options, you can customize them in your workflow configuration by adding
 #.....content of the file not shown
 #......
 #......
-      - uses: b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action@master
+      - uses: b-yond-infinite-network/ga-sync-issues-to-jira@master
         with:
           JIRA_PROJECTKEY:  ANOTHERPROJECT
           JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
