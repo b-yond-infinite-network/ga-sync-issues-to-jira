@@ -2,8 +2,8 @@
 
 
 <p align="left">
-  <a href="https://github.com/actions/javascript-action/workflows/local"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira@master/workflows/local/badge.svg"></a>
-  <a href="https://github.com/actions/javascript-action/workflows/issuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira@master/workflows/issuetrigger/badge.svg"></a>
+  <a href="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3Alocal"><img alt="CI" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/local/badge.svg"></a>
+  <a href="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3Aissuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/issuetrigger/badge.svg"></a>
 </p>
 
 # Using in your repo
