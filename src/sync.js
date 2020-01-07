@@ -6,8 +6,8 @@ const { jiraUpdateIssue }   = require( './jiraUpdate' )
 
 async function syncJiraWithGH() {
     try {
-        const useSubtaskMode = core.getInput( 'SUBTASK_MODE' )
-        const DEBUG = core.getInput( 'DEBUG_MODE' )
+        const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
+        const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
                       ? ( messageToLog ) => {
                 console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>'
             }
