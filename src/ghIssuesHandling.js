@@ -1,32 +1,34 @@
 const core      = require('@actions/core')
 const github    = require('@actions/github')
 
-async function handleIssues( useSubtaskMode ) {
-    const actionPossible = [ "opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
-    const actionToConsider = [ "opened", "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
-
+async function handleIssues( useSubtaskMode, DEBUG ) {
+    const actionPossible = [ "opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned" ]
+    const actionToConsider = [ "opened", "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned" ]
+    
     try {
-        const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
-        if( !jiraProjectKey ){
+        const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
+        if( !jiraProjectKey ) {
             console.log( '==> action skipped -- no project key' )
             return null
         }
         const changeEvent = github.context.payload
-
+        
         if( !changeEvent.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
-
+        
         if( actionPossible.indexOf( changeEvent.action ) === -1 )
             core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
-
-        if( actionToConsider.indexOf( changeEvent.action ) === -1 ){
+        
+        DEBUG( changeEvent )
+        
+        if( actionToConsider.indexOf( changeEvent.action ) === -1 ) {
             console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
             return null
         }
-
+        
         console.log( '-- retrieving all changes' )
         if( changeEvent.action === 'edited'
-            && !changeEvent.changes ){
+            && !changeEvent.changes ) {
             console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ JSON.stringify( changeEvent ) }` )
             return null
         }

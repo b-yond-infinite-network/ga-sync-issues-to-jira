@@ -1,7 +1,7 @@
 const core = require( '@actions/core' )
 const JiraClient = require( 'jira-connector' )
 
-async function handleSubtask( issueChanges, useSubtaskMode ) {
+async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 	//ISSUE CHANGE will be:
 	//      {
 	//             event:          payload.action,

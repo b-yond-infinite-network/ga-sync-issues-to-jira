@@ -25,6 +25,10 @@ inputs:
     description: 'Should we attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
     required: true
     default: 'true'
+  DEBUG_MODE:
+    description: 'Should log as many info as possible'
+    required: true
+    default: 'false'
 
 outputs: # output will be available to future step
   status:

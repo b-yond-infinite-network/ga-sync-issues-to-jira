@@ -6,33 +6,42 @@ const { jiraUpdateIssue }   = require( './jiraUpdate' )
 
 async function syncJiraWithGH() {
     try {
-        const useSubtaskMode = core.getInput('SUBTASK_MODE')
-
-        const issueEventTriggered = await handleIssues( useSubtaskMode )
-        if (!issueEventTriggered) {
+        const useSubtaskMode = core.getInput( 'SUBTASK_MODE' )
+        const DEBUG = core.getInput( 'DEBUG_MODE' )
+                      ? ( messageToLog ) => {
+                console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>'
+            }
+                      : ( messageToLog ) => {
+            }
+    
+    
+        const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
+        if( !issueEventTriggered ) {
             console.log( `--! no change to be handled` )
-            console.log('Ending Action')
+            console.log( 'Ending Action' )
             return
         }
-
-        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
+    
+        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode, DEBUG )
+        DEBUG( subtasksOrIssuesToUpdate )
         if( !subtasksOrIssuesToUpdate
-            || subtasksOrIssuesToUpdate.length === 0 ){
+            || subtasksOrIssuesToUpdate.length === 0 ) {
             console.log( `--! no subtask or issue to upgrade found at all` )
-            console.log('Ending Action')
+            console.log( 'Ending Action' )
             return
         }
     
         for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
             console.log( `Updating JIRA Issue: ${ JSON.stringify( currentSubtaskOrIssue.key ) }` )
-            const changeToPush =  listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
-            if( Object.keys( changeToPush ).length <= 0 ){
+            const changeToPush = listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
+            DEBUG( changeToPush )
+            if( Object.keys( changeToPush ).length <= 0 ) {
                 console.log( `-- all changes are already synced between issue#${ issueEventTriggered.details[ 'number' ] } in GITHUB and issue ${ currentSubtaskOrIssue.key } in JIRA` )
                 break
             }
-            
+        
             const updateResult = await jiraUpdateIssue( currentSubtaskOrIssue, changeToPush )
-            if( updateResult ){
+            if( updateResult ) {
                 console.log( `--- updated: ${ JSON.stringify( changeToPush ) }` )
             }
         }

@@ -4525,7 +4525,7 @@ module.exports = require("os");
 const core = __webpack_require__( 470 )
 const JiraClient = __webpack_require__( 876 )
 
-async function handleSubtask( issueChanges, useSubtaskMode ) {
+async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 	//ISSUE CHANGE will be:
 	//      {
 	//             event:          payload.action,
@@ -5864,33 +5864,42 @@ const { jiraUpdateIssue }   = __webpack_require__( 189 )
 
 async function syncJiraWithGH() {
     try {
-        const useSubtaskMode = core.getInput('SUBTASK_MODE')
-
-        const issueEventTriggered = await handleIssues( useSubtaskMode )
-        if (!issueEventTriggered) {
+        const useSubtaskMode = core.getInput( 'SUBTASK_MODE' )
+        const DEBUG = core.getInput( 'DEBUG_MODE' )
+                      ? ( messageToLog ) => {
+                console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>'
+            }
+                      : ( messageToLog ) => {
+            }
+    
+    
+        const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
+        if( !issueEventTriggered ) {
             console.log( `--! no change to be handled` )
-            console.log('Ending Action')
+            console.log( 'Ending Action' )
             return
         }
-
-        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode )
+    
+        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode, DEBUG )
+        DEBUG( subtasksOrIssuesToUpdate )
         if( !subtasksOrIssuesToUpdate
-            || subtasksOrIssuesToUpdate.length === 0 ){
+            || subtasksOrIssuesToUpdate.length === 0 ) {
             console.log( `--! no subtask or issue to upgrade found at all` )
-            console.log('Ending Action')
+            console.log( 'Ending Action' )
             return
         }
     
         for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
             console.log( `Updating JIRA Issue: ${ JSON.stringify( currentSubtaskOrIssue.key ) }` )
-            const changeToPush =  listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
-            if( Object.keys( changeToPush ).length <= 0 ){
+            const changeToPush = listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
+            DEBUG( changeToPush )
+            if( Object.keys( changeToPush ).length <= 0 ) {
                 console.log( `-- all changes are already synced between issue#${ issueEventTriggered.details[ 'number' ] } in GITHUB and issue ${ currentSubtaskOrIssue.key } in JIRA` )
                 break
             }
-            
+        
             const updateResult = await jiraUpdateIssue( currentSubtaskOrIssue, changeToPush )
-            if( updateResult ){
+            if( updateResult ) {
                 console.log( `--- updated: ${ JSON.stringify( changeToPush ) }` )
             }
         }
@@ -20175,32 +20184,34 @@ module.exports = function extend() {
 const core      = __webpack_require__(470)
 const github    = __webpack_require__(469)
 
-async function handleIssues( useSubtaskMode ) {
-    const actionPossible = [ "opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned"]
-    const actionToConsider = [ "opened", "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned"]
-
+async function handleIssues( useSubtaskMode, DEBUG ) {
+    const actionPossible = [ "opened", "edited", "deleted", "transferred", "pinned", "unpinned", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "locked", "unlocked", "milestoned", "demilestoned" ]
+    const actionToConsider = [ "opened", "edited", "deleted", "closed", "reopened", "assigned", "unassigned", "labeled", "unlabeled", "milestoned", "demilestoned" ]
+    
     try {
-        const jiraProjectKey = core.getInput('JIRA_PROJECTKEY')
-        if( !jiraProjectKey ){
+        const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
+        if( !jiraProjectKey ) {
             console.log( '==> action skipped -- no project key' )
             return null
         }
         const changeEvent = github.context.payload
-
+        
         if( !changeEvent.issue )
             throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
-
+        
         if( actionPossible.indexOf( changeEvent.action ) === -1 )
             core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
-
-        if( actionToConsider.indexOf( changeEvent.action ) === -1 ){
+        
+        DEBUG( changeEvent )
+        
+        if( actionToConsider.indexOf( changeEvent.action ) === -1 ) {
             console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
             return null
         }
-
+        
         console.log( '-- retrieving all changes' )
         if( changeEvent.action === 'edited'
-            && !changeEvent.changes ){
+            && !changeEvent.changes ) {
             console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ JSON.stringify( changeEvent ) }` )
             return null
         }

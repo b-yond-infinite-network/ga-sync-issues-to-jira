@@ -5,17 +5,18 @@ const path          = require('path')
 
 function setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, payloadToLoad ){
     // ACTION PROPERTIES
-    process.env['INPUT_SUBTASK_MODE']           = true
+    process.env[ 'INPUT_DEBUG_MODE' ] = false
+    process.env[ 'INPUT_SUBTASK_MODE' ] = true
     // the key (prefix) used by Jira for the project
-    process.env['INPUT_JIRA_PROJECTKEY']        = jiraKey
+    process.env[ 'INPUT_JIRA_PROJECTKEY' ] = jiraKey
     // the issue type to use to track the Github Issues
-    process.env['INPUT_JIRA_ISSUETYPE_NAME']    = jiraIssueType
+    process.env[ 'INPUT_JIRA_ISSUETYPE_NAME' ] = jiraIssueType
     // hostname to connect to Jira (do not add https://)
-    process.env['INPUT_JIRA_BASEURL']           = jiraBaseURL
+    process.env[ 'INPUT_JIRA_BASEURL' ] = jiraBaseURL
     // user email/login address to use the token of
-    process.env['INPUT_JIRA_USEREMAIL']         = jiraUserEmail
+    process.env[ 'INPUT_JIRA_USEREMAIL' ] = jiraUserEmail
     // token to use to connect to Jira
-    process.env['INPUT_JIRA_APITOKEN']          = jiraApiToken
+    process.env[ 'INPUT_JIRA_APITOKEN' ] = jiraApiToken
     
     process.env['INPUT_REPO-TOKEN']             = "FAKETOKEN"
     
