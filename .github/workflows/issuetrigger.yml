@@ -2,9 +2,9 @@ name: issuetrigger
 
 on:
   issues:
-    types: [opened, edited, closed, reopened, deleted, labeled, unlabeled]
+#    types: [opened, edited, closed, reopened, assigned, deleted, labeled, unlabeled]
 #  label:
-  issue_comment:
+#  issue_comment:
 
 jobs:
   test:
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: b-yond-infinite-network/ga-sync-issues-to-jira@master
         with:
-          JIRA_PROJECTKEY:  TEST
+          JIRA_PROJECTKEY:  GSTJ
           JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
           JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
           JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
