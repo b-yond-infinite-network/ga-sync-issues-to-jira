@@ -199,6 +199,9 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			
 			const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookForInSubtasks )
 			DEBUG( `Created issue with return info ${ createdIssue }` )
+			if( !createdIssue )
+				throw `Unable to create the the Jira Issue`
+			
 			return findIssue( jiraSession, createdIssue.key )
 		} ) )
 		return jiraIssueToAttachTo.filter( currentSubtaskOrIssue => currentSubtaskOrIssue !== null )
