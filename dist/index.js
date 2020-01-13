@@ -4722,6 +4722,7 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 				return foundSubtask
 			
 			const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookForInSubtasks )
+			DEBUG( `Created issue with return info ${ createdIssue }` )
 			return findIssue( jiraSession, createdIssue.key )
 		} ) )
 		return jiraIssueToAttachTo.filter( currentSubtaskOrIssue => currentSubtaskOrIssue !== null )
@@ -4809,10 +4810,10 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 				// "labels": [
 				//     "GITHUB" + ghIssue.id
 				// ]
-			},
+			}
 		}
 		console.log( `Creating JIRA Issue of type : ${ JSON.stringify( jiraIssueTypeNameToUse ) } with title: ${ title }` )
-		
+		DEBUG( `Creating JIRA ${ JSON.stringify( jiraIssueTypeNameToUse ) } with datas ${ JSON.stringify( issueData ) }` )
 		try {
 			return await jiraSession.issue.createIssue( issueData )
 		}
