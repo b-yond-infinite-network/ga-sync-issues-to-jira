@@ -255,7 +255,6 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 	
 	async function createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeNameToUse, jiraParentIssueKey, title ) {
 		const issueData = {
-			"update": {},
 			"fields": {
 				"project": {
 					"key": jiraProjectKey,
