@@ -1,0 +1,39 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "78901",
+  "self": "https://fakejira/rest/api/2/issue/78901",
+  "key": "TEST-TODO",
+  "fields": {
+    "summary": "A JIRA subtask to be done",
+    "description": "A description is always good to have",
+    "status": {
+      "self": "https://fakejira/rest/api/2/status/10000",
+      "description": "",
+      "iconUrl": "https://fakejira/",
+      "name": "To Do",
+      "id": "10000",
+      "statusCategory": {
+        "self": "https://fakejira/rest/api/2/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    },
+    "priority": {
+      "self": "https://fakejira/rest/api/2/priority/10001",
+      "iconUrl": "https://fakejira/images/icons/priorities/high.svg",
+      "name": "Major",
+      "id": "10001"
+    },
+    "issuetype": {
+      "self": "https://fakejira/rest/api/2/issuetype/10003",
+      "id": "10003",
+      "description": "A small piece of work that's part of a larger task.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10316&avatarType=issuetype",
+      "name": "Sub-task",
+      "subtask": true,
+      "avatarId": 10316
+    }
+  }
+}

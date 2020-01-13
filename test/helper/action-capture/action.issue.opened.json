@@ -6,6 +6,7 @@
     "comments": 0,
     "comments_url": "https://fakegithub/repo/issues/1/comments",
     "number": 10,
+    "state" : "open",
     "labels": [
       {
         "color": "3e529b",
@@ -13,9 +14,9 @@
         "id": 1652440629,
         "name": "TES-2",
         "node_id": "MDU6TGFiZWwxNjUyNDQwNjI5",
-        "url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/labels/TES-2"
+        "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TES-2"
       }
     ],
-    "labels_url": "https://api.github.com/repos/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues/1/labels{/name}"
+    "labels_url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1/labels{/name}"
   }
 }

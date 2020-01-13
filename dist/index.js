@@ -4583,9 +4583,9 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			leftOverLabelToUpdateFromParent
 		} = await listToUpdateDirectly( jiraSession, labeledJIRAIssueKeySubtasks, labeledJIRAIssuesKeyToAttachTo )
 		
-		const summaryToLookFor = ( issueChanges.event === 'edited' && 'title' in issueChanges.changes
+		const summaryToLookFor = ( issueChanges.changes && 'title' in issueChanges.changes
 								   ? issueChanges.changes.title.from
-								   : issueChanges.details[ 'title' ] )
+								   : issueChanges.details.title )
 		const jiraIssueToUpdateFromParent = await listToUpdateByAttachingToParent( jiraSession,
 																				   jiraProjectKey,
 																				   jiraIssueTypeName,
@@ -4721,7 +4721,6 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			if( foundSubtask )
 				return foundSubtask
 			
-			console.log( `----! no subtasks found with the title '${ summaryToLookForInSubtasks }' found, creating a new one` )
 			const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookForInSubtasks )
 			return findIssue( jiraSession, createdIssue.key )
 		} ) )
@@ -4740,6 +4739,7 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 		if( foundWithTitle )
 			return foundWithTitle
 		
+		console.log( `----! no subtasks found with the title '${ summaryToLookForInSubtasks }' found, creating a new one` )
 		return null
 	}
 	
@@ -5104,22 +5104,7 @@ module.exports = {
 /* 100 */,
 /* 101 */,
 /* 102 */,
-/* 103 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Strike extends mark_1.Mark {
-    constructor() {
-        super('strike');
-    }
-}
-exports.Strike = Strike;
-//# sourceMappingURL=strike.js.map
-
-/***/ }),
+/* 103 */,
 /* 104 */,
 /* 105 */
 /***/ (function(module) {
@@ -5860,17 +5845,14 @@ const core              = __webpack_require__( 470 )
 
 const handleIssues          = __webpack_require__( 376 )
 const handleSubtask         = __webpack_require__( 88 )
-const { jiraUpdateIssue }   = __webpack_require__( 189 )
+const handleSync            = __webpack_require__( 189 )
 
 async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
         const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
-                      ? ( messageToLog ) => {
-                console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>'
-            }
-                      : ( messageToLog ) => {
-            }
+                      ? ( messageToLog ) => ( console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>' )
+                      : (  ) => {}
     
     
         const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
@@ -5890,18 +5872,7 @@ async function syncJiraWithGH() {
         }
     
         for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
-            console.log( `Updating JIRA Issue: ${ JSON.stringify( currentSubtaskOrIssue.key ) }` )
-            const changeToPush = listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
-            DEBUG( changeToPush )
-            if( Object.keys( changeToPush ).length <= 0 ) {
-                console.log( `-- all changes are already synced between issue#${ issueEventTriggered.details[ 'number' ] } in GITHUB and issue ${ currentSubtaskOrIssue.key } in JIRA` )
-                break
-            }
-        
-            const updateResult = await jiraUpdateIssue( currentSubtaskOrIssue, changeToPush )
-            if( updateResult ) {
-                console.log( `--- updated: ${ JSON.stringify( changeToPush ) }` )
-            }
+            await handleSync( currentSubtaskOrIssue, issueEventTriggered, DEBUG )
         }
         
         console.log( `==> action success` )
@@ -5915,45 +5886,7 @@ async function syncJiraWithGH() {
     }
 }
 
-function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange ){
-    //TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
-    const changes = {}
-    
-    if( issueChangeTriggered.event === 'open'
-        || issueChangeTriggered.event === 'edited'
-        || issueChangeTriggered.event === 'reopened'
-        || issueChangeTriggered.event === 'labeled' ){
-        if( issueChangeTriggered.details.title
-            && subtaskOrIssueToChange.fields
-            && subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
-            changes.summary = issueChangeTriggered.details.title
-    
-        if( issueChangeTriggered.details.body
-            && subtaskOrIssueToChange.fields
-            && subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body )
-            changes.description = issueChangeTriggered.details.body
-    }
 
-    // if( issueChangeTriggered.event === 'edited' ){
-    //     if( 'title' in issueChangeTriggered.changes )
-    //         changes.summary = issueChangeTriggered.details.title
-    //
-    //
-    //     if( 'description' in issueChangeTriggered.changes )
-    //         changes.body = issueChangeTriggered.changes.description
-    // }
-    
-    
-    if( issueChangeTriggered.event === 'deleted' ) {
-        changes.delete = true
-    }
-    
-    if( issueChangeTriggered.event === 'closed' ) {
-        changes.closed = true
-    }
-    
-    return changes
-}
 
 module.exports.syncJiraWithGH = syncJiraWithGH
 
@@ -7064,22 +6997,7 @@ module.exports = uniq;
 
 /***/ }),
 /* 127 */,
-/* 128 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Underline extends mark_1.Mark {
-    constructor() {
-        super('underline');
-    }
-}
-exports.Underline = Underline;
-//# sourceMappingURL=underline.js.map
-
-/***/ }),
+/* 128 */,
 /* 129 */
 /***/ (function(module) {
 
@@ -7090,102 +7008,8 @@ module.exports = require("child_process");
 /* 131 */,
 /* 132 */,
 /* 133 */,
-/* 134 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-Object.defineProperty(exports, "__esModule", { value: true });
-var document_1 = __webpack_require__(802);
-exports.Document = document_1.Document;
-var tag_1 = __webpack_require__(322);
-exports.document = tag_1.document;
-__export(__webpack_require__(451));
-__export(__webpack_require__(681));
-__export(__webpack_require__(849));
-__export(__webpack_require__(561));
-__export(__webpack_require__(198));
-__export(__webpack_require__(135));
-__export(__webpack_require__(526));
-__export(__webpack_require__(398));
-__export(__webpack_require__(366));
-__export(__webpack_require__(403));
-__export(__webpack_require__(823));
-__export(__webpack_require__(371));
-__export(__webpack_require__(962));
-__export(__webpack_require__(799));
-__export(__webpack_require__(974));
-__export(__webpack_require__(713));
-__export(__webpack_require__(223));
-__export(__webpack_require__(976));
-__export(__webpack_require__(284));
-__export(__webpack_require__(171));
-__export(__webpack_require__(304));
-//# sourceMappingURL=index.js.map
-
-/***/ }),
-/* 135 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __webpack_require__(526);
-const hard_break_1 = __webpack_require__(398);
-const index_1 = __webpack_require__(360);
-const mention_1 = __webpack_require__(962);
-const text_1 = __webpack_require__(171);
-class Decision {
-    constructor(localId, state) {
-        this.localId = localId;
-        this.state = state;
-        this.content = new index_1.ContentNode('decisionItem');
-    }
-    text(text, marks) {
-        return this.add(new text_1.Text(text, marks));
-    }
-    code(text) {
-        return this.add(text_1.code(text));
-    }
-    em(text) {
-        return this.add(text_1.em(text));
-    }
-    link(text, href, title) {
-        return this.add(text_1.link(text, href, title));
-    }
-    strike(text) {
-        return this.add(text_1.strike(text));
-    }
-    strong(text) {
-        return this.add(text_1.strong(text));
-    }
-    mention(id, text) {
-        return this.add(new mention_1.Mention(id, text));
-    }
-    emoji(shortName, id, text) {
-        return this.add(new emoji_1.Emoji({ shortName, id, text }));
-    }
-    hardBreak() {
-        return this.add(new hard_break_1.HardBreak());
-    }
-    add(node) {
-        this.content.add(node);
-        return this;
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                localId: this.localId,
-                state: this.state
-            } });
-    }
-}
-exports.Decision = Decision;
-//# sourceMappingURL=decision.js.map
-
-/***/ }),
+/* 134 */,
+/* 135 */,
 /* 136 */,
 /* 137 */,
 /* 138 */,
@@ -8408,62 +8232,7 @@ function WorkflowSchemeClient(jiraClient) {
 
 /***/ }),
 /* 170 */,
-/* 171 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(304);
-const index_2 = __webpack_require__(360);
-function plain(text) {
-    return new Text(text);
-}
-exports.plain = plain;
-function strike(text) {
-    return new Text(text, index_1.marks().strike());
-}
-exports.strike = strike;
-function strong(text) {
-    return new Text(text, index_1.marks().strong());
-}
-exports.strong = strong;
-function em(text) {
-    return new Text(text, index_1.marks().em());
-}
-exports.em = em;
-function link(text, href, title) {
-    return new Text(text, index_1.marks().link(href, title));
-}
-exports.link = link;
-function code(text) {
-    return new Text(text, index_1.marks().code());
-}
-exports.code = code;
-class Text extends index_2.InlineNode {
-    constructor(text, marks) {
-        super();
-        this.text = text;
-        this.marks = marks;
-        if (!text || text.length === 0) {
-            throw new Error('Text must be at least one character long');
-        }
-    }
-    toJSON() {
-        const textNode = {
-            type: 'text',
-            text: this.text,
-        };
-        if (this.marks) {
-            textNode.marks = this.marks.toJSON();
-        }
-        return textNode;
-    }
-}
-exports.Text = Text;
-//# sourceMappingURL=text.js.map
-
-/***/ }),
+/* 171 */,
 /* 172 */,
 /* 173 */
 /***/ (function(module) {
@@ -9095,180 +8864,305 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
 
 const core          = __webpack_require__( 470 )
 const JiraClient    = __webpack_require__( 876 )
-const { Document, marks }	= __webpack_require__( 134 )
+// const { Document, marks }	= require( 'adf-builder' )
 
-async function jiraUpdateIssue( subtaskOrIssueToUpdate, updateToApply ) {
-	try {
-		//get jira login
-		const jiraSession = new JiraClient({
-											   host: core.getInput('JIRA_BASEURL'),
-											   basic_auth: {
-												   email: core.getInput('JIRA_USEREMAIL'),
-												   api_token: core.getInput('JIRA_APITOKEN'),
-											   } } )
-		// if( updateToApply.description ){
-		// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
-		// }
-		
-		return await jiraSession.issue.editIssue( {
-													  issueKey: 	subtaskOrIssueToUpdate.key,
-													  issue:		{ fields: updateToApply } } )
-		
-	} catch ( error ) {
-		core.setFailed( error.message
-						? error.message
-						: error.body && error.body.message
-						  ? error.body.message
-						  : JSON.stringify( error ) )
+async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
+	const jiraSession = new JiraClient({
+										   host: core.getInput('JIRA_BASEURL'),
+										   basic_auth: {
+											   email: core.getInput('JIRA_USEREMAIL'),
+											   api_token: core.getInput('JIRA_APITOKEN'),
+										   } } )
+	
+	const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
+	DEBUG( changeToPush )
+	if( Object.keys( changeToPush ).length <= 0 ) {
+		console.log( `-- all fields are synced between issue #${ issueEventTriggered.details[ 'number' ] } ` +
+					 `in GITHUB and issue ${ subtaskOrIssuetoChange.key } in JIRA` )
+	} else {
+		console.log( `Updating JIRA Issue: ${ JSON.stringify( subtaskOrIssuetoChange.key ) }` )
+		const updateResult = await jiraUpdateIssue( jiraSession, subtaskOrIssuetoChange, changeToPush )
+		if( updateResult ) {
+			console.log( `--- updated with: ${ JSON.stringify( changeToPush ) }` )
+		}
+	}
+	
+	const stateTransition = await jiraListStateToTransitionTo( jiraSession, subtaskOrIssuetoChange, issueEventTriggered )
+	if( stateTransition ){
+		await jiraPushIssueToTransition( jiraSession, subtaskOrIssuetoChange, stateTransition )
+		console.log( `-- pushed ${ subtaskOrIssuetoChange.key } to transition` )
+	}
+	
+	if( issueEventTriggered.event === 'deleted' ){
+		console.log( `Deleting JIRA Issue: ${ subtaskOrIssuetoChange.key }` )
+		await jiraDeleteIssue( jiraSession, subtaskOrIssuetoChange )
+		console.log( `-- deleted ${ subtaskOrIssuetoChange.key }` )
 	}
 }
 
-function convertDescriptionGITHUBMarkdownToADF( markdownText ){
-	const adfDescription = new Document()
-	const lineByLine = markdownText.split( '\n' )
-	let blockIsCode = false
-	let codeBuffer = null
-	let codeLanguage = null
+async function jiraUpdateIssue( jiraSession, subtaskOrIssueToUpdate, updateToApply ) {
+	// if( updateToApply.description ){
+	// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
+	// }
+		
+	return await jiraSession.issue.editIssue( {
+												  issueKey: 	subtaskOrIssueToUpdate.key,
+												  issue:		{ fields: updateToApply } } )
 	
-	lineByLine.forEach( currentLine => {
-		const codeBlock = currentLine.match( /^```(?<Language>.*)$/ )
-		if( !blockIsCode
-			&& codeBlock
-			&& codeBlock.groups ){
-			codeLanguage = codeBlock.groups.Language
-			codeBuffer = ''
-			blockIsCode = true
-			
-			return
-		}
-		if( blockIsCode
-			&& codeBlock ){
-			adfDescription.codeBlock( codeLanguage )
-			codeLanguage = null
-			codeBuffer = null
-			blockIsCode = false
-			return
-		}
-		
-		if( blockIsCode ){
-			codeBuffer += currentLine
-			return
-		}
-		
-		
-		const headerType = currentLine.match( /^(?<headerNumber>[#]{6}) (?<headerText>.*)$/i )
-		if( headerType
-			&& headerType.groups
-			&& headerType.groups.headerNumber
-			&& headerType.groups.headerText ){
-			adfDescription.heading( headerType.groups.headerNumber.length )
-						  .text( headerType.groups.headerText )
-			return
-		}
-		
-		const unorderedList = currentLine.match( /^(?<listLevel>[ ]*)* (?<listText>.*)$/i )
-		const orderedList = currentLine.match( /^(?<listLevel>[ ]*)[1-9]*\. (?<listText>.*)$/i )
-		if( unorderedList
-			&& unorderedList.groups
-			&& unorderedList.groups.listLevel
-			&& unorderedList.groups.listText ){
-			adfDescription.bulletList( )
-						  .textItem( unorderedList.groups.listText )
-			return
-		}
-		
-		if( orderedList
-				 && orderedList.groups
-				 && orderedList.groups.listLevel
-				 && orderedList.groups.listText ){
-			adfDescription.bulletList( )
-						  .textItem( orderedList.groups.listText )
-			return
-		}
-		const blockquote = currentLine.match( /^> (?<quoteText>.*)$/i )
-		if( blockquote
-			&& blockquote.groups
-			&& blockquote.groups.quoteText ){
-			adfDescription.blockQuote( )
-						  .text( blockquote.groups.quoteText )
-			return
-		}
-		
-		
-		
-		const paragraph = adfDescription.paragraph()
-		
-		const lineUnderscored = currentLine.replace( /\*/g, '_' )
-		let currentDecorationLevel = 0
-		// 0 => no decoration
-		// 1 => italic
-		// 2 => bold
-		// 3 => bold and italic
-		
-		let potentialUnderscorePair = false
-		let expressionBuffer		= ''
-		for( const currentCharacterIndex in lineUnderscored ){
-			const cahra = lineUnderscored[ currentCharacterIndex ]
-			if( lineUnderscored[ currentCharacterIndex ] !== '_' ){
-				expressionBuffer += lineUnderscored[ currentCharacterIndex ]
-				
-				if( potentialUnderscorePair ){
-					currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 2
-											 ? currentDecorationLevel + 1
-											 : currentDecorationLevel - 1
-					potentialUnderscorePair = false
-				}
-			}
-			
-			if( lineUnderscored[ currentCharacterIndex ] === '_' ){
-				let decorationToUse = currentDecorationLevel === 1
-									  ? marks().em()
-									  : currentDecorationLevel === 2
-										? marks().strong()
-										: currentDecorationLevel === 3
-										  ? marks().strong().em()
-										  : null
-				
-				if( expressionBuffer !== '' ){
-					textWithInlineCode( paragraph, expressionBuffer, decorationToUse )
-				}
-				else {
-					if( potentialUnderscorePair )
-						currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 1
-												 ? currentDecorationLevel + 2
-												 : currentDecorationLevel - 2
-				}
-				
-				
-				
-				potentialUnderscorePair = !potentialUnderscorePair
-				expressionBuffer = ''
-			}
-		}
-	} )
-	return adfDescription
 }
 
-function textWithInlineCode( currentParagraph, rawText, marksToUse ){
-	const inlineCode = /(?<textBefore>[^`]*)`(?<inlineCode>[^`]+)`(?<textAfter>[^`]*)/.exec( rawText )
+async function jiraFindTransitions( jiraSession, subtaskOrIssueToUpdate ) {
+	const nameTodoTransition 			= core.getInput( 'JIRA_STATE_TODO' )
+	const nameInProgressTransition 		= core.getInput( 'JIRA_STATE_INPROGRESS' )
+	const nameDoneTransition 			= core.getInput( 'JIRA_STATE_DONE' )
 	
-	if( !inlineCode
-		|| !inlineCode.groups ){
-		currentParagraph.text( rawText, marksToUse )
-		return
+	const jiraTransitions = await jiraSession.issue.getTransitions( { issueKey: subtaskOrIssueToUpdate.key } )
+	
+	if( !jiraTransitions.transitions ||
+		Object.keys( jiraTransitions.transitions ).length === 0 )
+		return null
+	
+	
+	const transitionTodo = jiraTransitions.transitions
+										  .find( currentTransition => ( currentTransition.to
+																		&& currentTransition.to
+																		&& ( currentTransition.to.name === nameTodoTransition ) ) )
+	const transitionInProgress = jiraTransitions.transitions
+												.find( currentTransition => ( currentTransition.to
+																			  && currentTransition.to
+																			  && ( currentTransition.to.name === nameInProgressTransition ) ) )
+	const transitionDone = jiraTransitions.transitions
+										  .find( currentTransition => ( currentTransition.to
+																		&& currentTransition.to
+																		&& ( currentTransition.to.name === nameDoneTransition ) ) )
+	return {
+		"todo": 		transitionTodo ? transitionTodo.id : null,
+		"inprogress":	transitionInProgress ? transitionInProgress.id : null,
+		"done":			transitionDone ? transitionDone.id : null
+	}
+}
+
+async function jiraPushIssueToTransition( jiraSession, subtaskOrIssueToUpdate, idTransitionToPushThrough ) {
+	return await jiraSession.issue.transitionIssue( { 	issueKey: 		subtaskOrIssueToUpdate.key,
+														transition: 	{ id: idTransitionToPushThrough } } )
+}
+
+async function jiraDeleteIssue( jiraSession, subtaskOrIssueToUpdate ) {
+	await jiraSession.issue.deleteIssue( { issueKey: subtaskOrIssueToUpdate.key } )
+}
+
+function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueToChange ){
+	//TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
+	// we only sync summary and description for now
+	const changes = {}
+	
+	if( issueChangeTriggered.details.title
+		&& subtaskOrIssueToChange.fields
+		&& subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
+		changes.summary = issueChangeTriggered.details.title
+		
+	if( issueChangeTriggered.details.body
+		&& subtaskOrIssueToChange.fields
+		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body )
+		changes.description = issueChangeTriggered.details.body
+	
+	return changes
+}
+
+async function jiraListStateToTransitionTo( jiraSession, subtaskOrIssueToUpdate, issueChangeTriggered ){
+	//TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
+	//we try to sync the state only when they're different
+	const nameTodoTransition 			= core.getInput( 'JIRA_STATE_TODO' )
+	const nameInProgressTransition 		= core.getInput( 'JIRA_STATE_INPROGRESS' )
+	const nameDoneTransition 			= core.getInput( 'JIRA_STATE_DONE' )
+	
+	const transitions = await jiraFindTransitions( jiraSession, subtaskOrIssueToUpdate )
+	if( !transitions ){
+		console.log( `--! no compatible transition with those configured` )
+		return null
 	}
 	
-	if( inlineCode.groups.textBefore )
-		currentParagraph.text( inlineCode.groups.textBefore, marksToUse )
 	
-	if( inlineCode.groups.inlineCode )
-		currentParagraph.code( inlineCode.groups.inlineCode )
+	//we have to make sure to have a closed GITHUB issue has a DONE JIRA Issue
+	if( issueChangeTriggered.details.state === 'closed'
+		&& subtaskOrIssueToUpdate.fields.status.name === nameDoneTransition ){
+		return null
+	}
+	else if( issueChangeTriggered.details.state === 'closed'
+			 && ( subtaskOrIssueToUpdate.fields.status.name === nameTodoTransition
+				  || subtaskOrIssueToUpdate.fields.status.name === nameInProgressTransition ) ){
+		console.log( `Transitioning JIRA Issue ${ subtaskOrIssueToUpdate.key } to ${ nameDoneTransition }` )
+		return transitions.done
+	}
 	
-	if( inlineCode.groups.textAfter )
-		currentParagraph.text( inlineCode.groups.textAfter, marksToUse )
+	//apparently Github Issue can on be closed or open, so lets skip this => if( issueChangeTriggered.details.state === 'open' ){
+	
+	//we have to make sure to have the JIRA Issue in something else than DONE
+	if( issueChangeTriggered.details.assignee ){
+		if( subtaskOrIssueToUpdate.fields.status.name === nameTodoTransition
+			|| subtaskOrIssueToUpdate.fields.status.name === nameDoneTransition ){
+			console.log( `Transitioning JIRA Issue ${ subtaskOrIssueToUpdate.key } to ${ nameInProgressTransition }` )
+			return transitions.inprogress
+		}
+	}
+	
+	if( subtaskOrIssueToUpdate.fields.status.name === nameInProgressTransition
+		|| subtaskOrIssueToUpdate.fields.status.name === nameDoneTransition ){
+		console.log( `Transitioning JIRA Issue ${ subtaskOrIssueToUpdate.key } to ${ nameTodoTransition }` )
+		return transitions.todo
+	}
+	
+	//we ignore any other transition with names we don't know
+	return null
 }
 
-module.exports.jiraUpdateIssue = jiraUpdateIssue;
+// function convertDescriptionGITHUBMarkdownToADF( markdownText ){
+// 	const adfDescription = new Document()
+// 	const lineByLine = markdownText.split( '\n' )
+// 	let blockIsCode = false
+// 	let codeBuffer = null
+// 	let codeLanguage = null
+//
+// 	lineByLine.forEach( currentLine => {
+// 		const codeBlock = currentLine.match( /^```(?<Language>.*)$/ )
+// 		if( !blockIsCode
+// 			&& codeBlock
+// 			&& codeBlock.groups ){
+// 			codeLanguage = codeBlock.groups.Language
+// 			codeBuffer = ''
+// 			blockIsCode = true
+//
+// 			return
+// 		}
+// 		if( blockIsCode
+// 			&& codeBlock ){
+// 			adfDescription.codeBlock( codeLanguage )
+// 			codeLanguage = null
+// 			codeBuffer = null
+// 			blockIsCode = false
+// 			return
+// 		}
+//
+// 		if( blockIsCode ){
+// 			codeBuffer += currentLine
+// 			return
+// 		}
+//
+//
+// 		const headerType = currentLine.match( /^(?<headerNumber>[#]{6}) (?<headerText>.*)$/i )
+// 		if( headerType
+// 			&& headerType.groups
+// 			&& headerType.groups.headerNumber
+// 			&& headerType.groups.headerText ){
+// 			adfDescription.heading( headerType.groups.headerNumber.length )
+// 						  .text( headerType.groups.headerText )
+// 			return
+// 		}
+//
+// 		const unorderedList = currentLine.match( /^(?<listLevel>[ ]*)* (?<listText>.*)$/i )
+// 		const orderedList = currentLine.match( /^(?<listLevel>[ ]*)[1-9]*\. (?<listText>.*)$/i )
+// 		if( unorderedList
+// 			&& unorderedList.groups
+// 			&& unorderedList.groups.listLevel
+// 			&& unorderedList.groups.listText ){
+// 			adfDescription.bulletList( )
+// 						  .textItem( unorderedList.groups.listText )
+// 			return
+// 		}
+//
+// 		if( orderedList
+// 				 && orderedList.groups
+// 				 && orderedList.groups.listLevel
+// 				 && orderedList.groups.listText ){
+// 			adfDescription.bulletList( )
+// 						  .textItem( orderedList.groups.listText )
+// 			return
+// 		}
+// 		const blockquote = currentLine.match( /^> (?<quoteText>.*)$/i )
+// 		if( blockquote
+// 			&& blockquote.groups
+// 			&& blockquote.groups.quoteText ){
+// 			adfDescription.blockQuote( )
+// 						  .text( blockquote.groups.quoteText )
+// 			return
+// 		}
+//
+//
+//
+// 		const paragraph = adfDescription.paragraph()
+//
+// 		const lineUnderscored = currentLine.replace( /\*/g, '_' )
+// 		let currentDecorationLevel = 0
+// 		// 0 => no decoration
+// 		// 1 => italic
+// 		// 2 => bold
+// 		// 3 => bold and italic
+//
+// 		let potentialUnderscorePair = false
+// 		let expressionBuffer		= ''
+// 		for( const currentCharacterIndex in lineUnderscored ){
+// 			const cahra = lineUnderscored[ currentCharacterIndex ]
+// 			if( lineUnderscored[ currentCharacterIndex ] !== '_' ){
+// 				expressionBuffer += lineUnderscored[ currentCharacterIndex ]
+//
+// 				if( potentialUnderscorePair ){
+// 					currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 2
+// 											 ? currentDecorationLevel + 1
+// 											 : currentDecorationLevel - 1
+// 					potentialUnderscorePair = false
+// 				}
+// 			}
+//
+// 			if( lineUnderscored[ currentCharacterIndex ] === '_' ){
+// 				let decorationToUse = currentDecorationLevel === 1
+// 									  ? marks().em()
+// 									  : currentDecorationLevel === 2
+// 										? marks().strong()
+// 										: currentDecorationLevel === 3
+// 										  ? marks().strong().em()
+// 										  : null
+//
+// 				if( expressionBuffer !== '' ){
+// 					textWithInlineCode( paragraph, expressionBuffer, decorationToUse )
+// 				}
+// 				else {
+// 					if( potentialUnderscorePair )
+// 						currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 1
+// 												 ? currentDecorationLevel + 2
+// 												 : currentDecorationLevel - 2
+// 				}
+//
+//
+//
+// 				potentialUnderscorePair = !potentialUnderscorePair
+// 				expressionBuffer = ''
+// 			}
+// 		}
+// 	} )
+// 	return adfDescription
+// }
+//
+// function textWithInlineCode( currentParagraph, rawText, marksToUse ){
+// 	const inlineCode = /(?<textBefore>[^`]*)`(?<inlineCode>[^`]+)`(?<textAfter>[^`]*)/.exec( rawText )
+//
+// 	if( !inlineCode
+// 		|| !inlineCode.groups ){
+// 		currentParagraph.text( rawText, marksToUse )
+// 		return
+// 	}
+//
+// 	if( inlineCode.groups.textBefore )
+// 		currentParagraph.text( inlineCode.groups.textBefore, marksToUse )
+//
+// 	if( inlineCode.groups.inlineCode )
+// 		currentParagraph.code( inlineCode.groups.inlineCode )
+//
+// 	if( inlineCode.groups.textAfter )
+// 		currentParagraph.text( inlineCode.groups.textAfter, marksToUse )
+// }
+
+module.exports 	= handleSync
+
 
 
 /***/ }),
@@ -9305,22 +9199,7 @@ function authenticationPlugin(octokit, options) {
 module.exports = require("querystring");
 
 /***/ }),
-/* 192 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Strong extends mark_1.Mark {
-    constructor() {
-        super('strong');
-    }
-}
-exports.Strong = Strong;
-//# sourceMappingURL=strong.js.map
-
-/***/ }),
+/* 192 */,
 /* 193 */,
 /* 194 */,
 /* 195 */,
@@ -11765,33 +11644,7 @@ function checkMode (stat, options) {
 
 
 /***/ }),
-/* 198 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const decision_1 = __webpack_require__(135);
-const index_1 = __webpack_require__(360);
-class DecisionList extends index_1.TopLevelNode {
-    constructor(localId) {
-        super();
-        this.localId = localId;
-        this.content = new index_1.ContentNode('decisionList');
-    }
-    decision(localId, state) {
-        return this.content.add(new decision_1.Decision(localId, state));
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                localId: this.localId
-            } });
-    }
-}
-exports.DecisionList = DecisionList;
-//# sourceMappingURL=decision-list.js.map
-
-/***/ }),
+/* 198 */,
 /* 199 */,
 /* 200 */,
 /* 201 */,
@@ -11944,24 +11797,7 @@ module.exports = {"_args":[["@octokit/rest@16.34.0","/Users/brunomorel/Dropbox (
 module.exports = {"$id":"browser.json#","$schema":"http://json-schema.org/draft-06/schema#","type":"object","required":["name","version"],"properties":{"name":{"type":"string"},"version":{"type":"string"},"comment":{"type":"string"}}};
 
 /***/ }),
-/* 223 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-class Rule extends index_1.TopLevelNode {
-    toJSON() {
-        return {
-            type: 'rule'
-        };
-    }
-}
-exports.Rule = Rule;
-//# sourceMappingURL=rule.js.map
-
-/***/ }),
+/* 223 */,
 /* 224 */
 /***/ (function(module) {
 
@@ -16900,70 +16736,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
 /***/ }),
 /* 282 */,
 /* 283 */,
-/* 284 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __webpack_require__(526);
-const hard_break_1 = __webpack_require__(398);
-const index_1 = __webpack_require__(360);
-const mention_1 = __webpack_require__(962);
-const text_1 = __webpack_require__(171);
-class Task {
-    constructor(localId, state) {
-        this.localId = localId;
-        this.state = state;
-        this.content = new index_1.ContentNode('taskItem');
-    }
-    text(text, marks) {
-        return this.add(new text_1.Text(text, marks));
-    }
-    code(text) {
-        return this.add(text_1.code(text));
-    }
-    em(text) {
-        return this.add(text_1.em(text));
-    }
-    link(text, href, title) {
-        return this.add(text_1.link(text, href, title));
-    }
-    strike(text) {
-        return this.add(text_1.strike(text));
-    }
-    strong(text) {
-        return this.add(text_1.strong(text));
-    }
-    mention(id, text) {
-        return this.add(new mention_1.Mention(id, text));
-    }
-    emoji(shortName, id, text) {
-        return this.add(new emoji_1.Emoji({ shortName, id, text }));
-    }
-    hardBreak() {
-        return this.add(new hard_break_1.HardBreak());
-    }
-    add(node) {
-        this.content.add(node);
-        return this;
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                localId: this.localId,
-                state: this.state
-            } });
-    }
-}
-exports.Task = Task;
-var TaskState;
-(function (TaskState) {
-    TaskState["TODO"] = "TODO";
-    TaskState["DONE"] = "DONE";
-})(TaskState = exports.TaskState || (exports.TaskState = {}));
-//# sourceMappingURL=task.js.map
-
-/***/ }),
+/* 284 */,
 /* 285 */,
 /* 286 */
 /***/ (function(__unusedmodule, exports) {
@@ -17992,78 +17765,7 @@ function normalizePaginatedListResponse(octokit, url, response) {
 /***/ }),
 /* 302 */,
 /* 303 */,
-/* 304 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const action_1 = __webpack_require__(620);
-const code_1 = __webpack_require__(601);
-const em_1 = __webpack_require__(819);
-const link_1 = __webpack_require__(937);
-const strike_1 = __webpack_require__(103);
-const strong_1 = __webpack_require__(192);
-const subsup_1 = __webpack_require__(396);
-const text_color_1 = __webpack_require__(936);
-const underline_1 = __webpack_require__(128);
-function marks() {
-    return new Marks();
-}
-exports.marks = marks;
-class Marks {
-    constructor() {
-        this.marks = [];
-    }
-    code() {
-        return this.add(new code_1.Code());
-    }
-    em() {
-        return this.add(new em_1.Em());
-    }
-    link(href, title) {
-        return this.add(new link_1.Link(href, title));
-    }
-    strike() {
-        return this.add(new strike_1.Strike());
-    }
-    strong() {
-        return this.add(new strong_1.Strong());
-    }
-    sub() {
-        return this.add(new subsup_1.SubSup('sub'));
-    }
-    sup() {
-        return this.add(new subsup_1.SubSup('sup'));
-    }
-    color(color) {
-        return this.add(new text_color_1.TextColor(color));
-    }
-    underline() {
-        return this.add(new underline_1.Underline());
-    }
-    action(title, target, actionParameters) {
-        return this.add(new action_1.Action(title, target, actionParameters));
-    }
-    toJSON() {
-        if (this.marks.length === 0) {
-            throw new Error('At least one mark is required');
-        }
-        return this.marks.map(mark => mark.toJSON());
-    }
-    add(mark) {
-        const existing = this.marks.filter(m => m.type === mark.type);
-        if (existing.length > 0) {
-            throw new Error('A mark type can only be used once');
-        }
-        this.marks.push(mark);
-        return this;
-    }
-}
-exports.Marks = Marks;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
+/* 304 */,
 /* 305 */,
 /* 306 */,
 /* 307 */,
@@ -18150,43 +17852,7 @@ module.exports = {"$id":"log.json#","$schema":"http://json-schema.org/draft-06/s
 /***/ }),
 /* 320 */,
 /* 321 */,
-/* 322 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const document_1 = __webpack_require__(802);
-const index_1 = __webpack_require__(360);
-function document(strings, ...args) {
-    const doc = new document_1.Document();
-    const paragraph = doc.paragraph();
-    for (let i = 0; i < args.length; i++) {
-        if (strings[i].length) {
-            paragraph.text(strings[i]);
-        }
-        if (args[i] instanceof index_1.TopLevelNode) {
-            throw new Error('Top level nodes cannot be used in tagged templates');
-        }
-        if (args[i] instanceof index_1.InlineNode) {
-            paragraph.add(args[i]);
-        }
-        else {
-            const stringified = String(args[i]);
-            if (stringified.length > 0) {
-                paragraph.text(stringified);
-            }
-        }
-    }
-    if (strings[args.length].length > 0) {
-        paragraph.text(strings[args.length]);
-    }
-    return doc;
-}
-exports.document = document;
-//# sourceMappingURL=tag.js.map
-
-/***/ }),
+/* 322 */,
 /* 323 */
 /***/ (function(module) {
 
@@ -19743,45 +19409,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 360 */
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class ContentNode {
-    constructor(type, minLength = 1) {
-        this.type = type;
-        this.minLength = minLength;
-        this.content = [];
-    }
-    toJSON() {
-        if (this.content.length < this.minLength) {
-            throw new Error(`There must be at least ${this.minLength} content elements`);
-        }
-        return {
-            type: this.type,
-            content: this.content.map(node => node.toJSON())
-        };
-    }
-    add(node) {
-        if (!node) {
-            throw new Error('Illegal value');
-        }
-        this.content.push(node);
-        return node;
-    }
-}
-exports.ContentNode = ContentNode;
-class TopLevelNode {
-}
-exports.TopLevelNode = TopLevelNode;
-class InlineNode {
-}
-exports.InlineNode = InlineNode;
-//# sourceMappingURL=index.js.map
-
-/***/ }),
+/* 360 */,
 /* 361 */,
 /* 362 */
 /***/ (function(module) {
@@ -19925,41 +19553,7 @@ Signer.prototype.sign = function () {
 /***/ }),
 /* 364 */,
 /* 365 */,
-/* 366 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const text_1 = __webpack_require__(171);
-class Heading extends index_1.TopLevelNode {
-    constructor(level) {
-        super();
-        this.level = level;
-        this.content = new index_1.ContentNode('heading');
-        if (level < 1 || level > 6) {
-            throw new Error('Level must be in the range of 1-6');
-        }
-    }
-    link(text, href, title) {
-        this.content.add(text_1.link(text, href, title));
-        return this;
-    }
-    text(text) {
-        this.content.add(text_1.plain(text));
-        return this;
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                level: this.level
-            } });
-    }
-}
-exports.Heading = Heading;
-//# sourceMappingURL=heading.js.map
-
-/***/ }),
+/* 366 */,
 /* 367 */,
 /* 368 */
 /***/ (function(module) {
@@ -19989,35 +19583,7 @@ function deprecate (message) {
 
 
 /***/ }),
-/* 371 */
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class Media {
-    constructor(attrs) {
-        this.attrs = attrs;
-    }
-    toJSON() {
-        const media = {
-            type: 'media',
-            attrs: {
-                id: this.attrs.id,
-                type: this.attrs.type,
-                collection: this.attrs.collection
-            }
-        };
-        if (this.attrs.occurrenceKey) {
-            media.attrs.occurrenceKey = this.attrs.occurrenceKey;
-        }
-        return media;
-    }
-}
-exports.Media = Media;
-//# sourceMappingURL=media.js.map
-
-/***/ }),
+/* 371 */,
 /* 372 */
 /***/ (function(module) {
 
@@ -21425,31 +20991,7 @@ function generateOAuthObject(config) {
 /***/ }),
 /* 394 */,
 /* 395 */,
-/* 396 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class SubSup extends mark_1.Mark {
-    constructor(variant) {
-        super('subsup');
-        this.variant = variant;
-    }
-    toJSON() {
-        return {
-            type: this.type,
-            attrs: {
-                type: this.variant
-            }
-        };
-    }
-}
-exports.SubSup = SubSup;
-//# sourceMappingURL=subsup.js.map
-
-/***/ }),
+/* 396 */,
 /* 397 */
 /***/ (function(module) {
 
@@ -21534,31 +21076,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 398 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-function hardBreak() {
-    return new HardBreak();
-}
-exports.hardBreak = hardBreak;
-class HardBreak extends index_1.InlineNode {
-    toJSON() {
-        return {
-            type: 'hardBreak',
-            attrs: {
-                text: '\n'
-            }
-        };
-    }
-}
-exports.HardBreak = HardBreak;
-//# sourceMappingURL=hard-break.js.map
-
-/***/ }),
+/* 398 */,
 /* 399 */
 /***/ (function(module) {
 
@@ -21882,37 +21400,7 @@ function Octokit(plugins, options) {
 
 
 /***/ }),
-/* 403 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __webpack_require__(849);
-const index_1 = __webpack_require__(360);
-const ordered_list_1 = __webpack_require__(799);
-const paragraph_1 = __webpack_require__(713);
-class ListItem {
-    constructor() {
-        this.content = new index_1.ContentNode('listItem');
-    }
-    paragraph() {
-        return this.content.add(new paragraph_1.Paragraph());
-    }
-    bulletList() {
-        return this.content.add(new bullet_list_1.BulletList());
-    }
-    orderedList() {
-        return this.content.add(new ordered_list_1.OrderedList());
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.ListItem = ListItem;
-//# sourceMappingURL=list-item.js.map
-
-/***/ }),
+/* 403 */,
 /* 404 */,
 /* 405 */,
 /* 406 */,
@@ -23996,239 +23484,7 @@ module.exports.isAnEarlyCloseHost= function( hostName ) {
 }
 
 /***/ }),
-/* 451 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-class Action {
-    title(title) {
-        this.actionTitle = title;
-        return this;
-    }
-    target(target) {
-        if (!target.key) {
-            throw new Error('Action target key is required');
-        }
-        this.actionTarget = target;
-        return this;
-    }
-    parameters(parameters) {
-        this.actionParameters = parameters;
-        return this;
-    }
-    toJSON() {
-        const action = {};
-        if (this.actionTitle) {
-            action.title = this.actionTitle;
-        }
-        if (this.actionTarget) {
-            action.target = this.actionTarget;
-        }
-        if (this.actionParameters) {
-            action.parameters = this.actionParameters;
-        }
-        if (Object.keys(action).length < 2) {
-            throw new Error('Must set title and target attributes for action');
-        }
-        return action;
-    }
-}
-exports.Action = Action;
-class Detail {
-    constructor() {
-        this.detailUsers = [];
-    }
-    title(text) {
-        this.detailTitle = text;
-        return this;
-    }
-    text(text) {
-        this.detailText = text;
-        return this;
-    }
-    lozenge(lozenge) {
-        this.detailLozenge = lozenge;
-        return this;
-    }
-    icon(icon) {
-        this.detailIcon = icon;
-        return this;
-    }
-    badge(badge) {
-        this.detailBadge = badge;
-        return this;
-    }
-    user(user) {
-        this.detailUsers.push(user);
-        return this;
-    }
-    toJSON() {
-        const detail = {};
-        if (this.detailTitle) {
-            detail.title = this.detailTitle;
-        }
-        if (this.detailText) {
-            detail.text = this.detailText;
-        }
-        if (this.detailIcon) {
-            detail.icon = this.detailIcon;
-        }
-        if (this.detailBadge) {
-            detail.badge = this.detailBadge;
-        }
-        if (this.detailLozenge) {
-            detail.lozenge = this.detailLozenge;
-        }
-        if (this.detailUsers.length > 0) {
-            detail.users = this.detailUsers;
-        }
-        if (Object.keys(detail).length === 0) {
-            throw new Error('Must at least set one attribute');
-        }
-        return detail;
-    }
-}
-exports.Detail = Detail;
-class Context {
-    constructor(text) {
-        this.text = text;
-    }
-    icon(icon) {
-        this.contextIcon = icon;
-        return this;
-    }
-    toJSON() {
-        const context = {
-            text: this.text
-        };
-        if (this.contextIcon) {
-            context.icon = this.contextIcon;
-        }
-        return context;
-    }
-}
-exports.Context = Context;
-class TitleUser {
-    constructor(titleUserIcon) {
-        this.titleUserIcon = titleUserIcon;
-    }
-    id(id) {
-        this.titleUserId = id;
-        return this;
-    }
-    toJSON() {
-        const titleUser = {
-            icon: this.titleUserIcon
-        };
-        if (this.titleUserId) {
-            titleUser.id = this.titleUserId;
-        }
-        return titleUser;
-    }
-}
-exports.TitleUser = TitleUser;
-class ApplicationCard extends index_1.TopLevelNode {
-    constructor(title, text) {
-        super();
-        this.title = title;
-        this.text = text;
-        this.isCollapsible = false;
-        this.details = [];
-        this.actions = [];
-    }
-    link(url) {
-        this.linkUrl = url;
-        return this;
-    }
-    background(url) {
-        this.backgroundUrl = url;
-        return this;
-    }
-    preview(url) {
-        this.previewUrl = url;
-        return this;
-    }
-    collapsible(collapsible) {
-        this.isCollapsible = collapsible;
-        return this;
-    }
-    description(text) {
-        this.descriptionText = text;
-        return this;
-    }
-    titleUser(icon) {
-        const titleUser = new TitleUser(icon);
-        this.userInTitle = titleUser;
-        return titleUser;
-    }
-    detail() {
-        const detail = new Detail();
-        this.details.push(detail);
-        return detail;
-    }
-    action() {
-        const action = new Action();
-        this.actions.push(action);
-        return action;
-    }
-    context(text) {
-        this.cardContext = new Context(text);
-        return this.cardContext;
-    }
-    toJSON() {
-        const card = {
-            type: 'applicationCard',
-            attrs: {
-                text: this.text || this.title,
-                title: {
-                    text: this.title
-                },
-                collapsible: this.isCollapsible
-            }
-        };
-        if (this.linkUrl) {
-            card.attrs.textUrl = this.linkUrl;
-            card.attrs.link = {
-                url: this.linkUrl
-            };
-        }
-        if (this.backgroundUrl) {
-            card.attrs.background = {
-                url: this.backgroundUrl
-            };
-        }
-        if (this.previewUrl) {
-            card.attrs.preview = {
-                url: this.previewUrl
-            };
-        }
-        if (this.descriptionText) {
-            card.attrs.description = {
-                text: this.descriptionText
-            };
-        }
-        if (this.userInTitle) {
-            card.attrs.title.user = this.userInTitle.toJSON();
-        }
-        if (this.details.length > 0) {
-            card.attrs.details = this.details.map(detail => detail.toJSON());
-        }
-        if (this.actions.length > 0) {
-            card.attrs.actions = this.actions.map(action => action.toJSON());
-        }
-        if (this.cardContext) {
-            card.attrs.context = this.cardContext.toJSON();
-        }
-        return card;
-    }
-}
-exports.ApplicationCard = ApplicationCard;
-//# sourceMappingURL=application-card.js.map
-
-/***/ }),
+/* 451 */,
 /* 452 */,
 /* 453 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
@@ -29975,42 +29231,7 @@ module.exports.Collection = Hook.Collection
 /***/ }),
 /* 524 */,
 /* 525 */,
-/* 526 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-function emoji(shortName, id, text) {
-    return new Emoji({ shortName, id, text });
-}
-exports.emoji = emoji;
-class Emoji extends index_1.InlineNode {
-    constructor(attrs) {
-        super();
-        this.attrs = attrs;
-    }
-    toJSON() {
-        const emojiNode = {
-            type: 'emoji',
-            attrs: {
-                shortName: this.attrs.shortName
-            }
-        };
-        if (this.attrs.id) {
-            emojiNode.attrs.id = this.attrs.id;
-        }
-        if (this.attrs.text) {
-            emojiNode.attrs.text = this.attrs.text;
-        }
-        return emojiNode;
-    }
-}
-exports.Emoji = Emoji;
-//# sourceMappingURL=emoji.js.map
-
-/***/ }),
+/* 526 */,
 /* 527 */,
 /* 528 */,
 /* 529 */
@@ -31406,38 +30627,7 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 561 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const text_1 = __webpack_require__(171);
-class CodeBlock extends index_1.TopLevelNode {
-    constructor(language) {
-        super();
-        this.language = language;
-        this.content = new index_1.ContentNode('codeBlock');
-    }
-    text(code) {
-        this.content.add(text_1.plain(code));
-        return this;
-    }
-    toJSON() {
-        const codeBlock = this.content.toJSON();
-        if (this.language) {
-            codeBlock.attrs = {
-                language: this.language
-            };
-        }
-        return codeBlock;
-    }
-}
-exports.CodeBlock = CodeBlock;
-//# sourceMappingURL=code-block.js.map
-
-/***/ }),
+/* 561 */,
 /* 562 */
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -32807,22 +31997,7 @@ exports.OAuth2.prototype.get= function(url, access_token, callback) {
 
 
 /***/ }),
-/* 601 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Code extends mark_1.Mark {
-    constructor() {
-        super('code');
-    }
-}
-exports.Code = Code;
-//# sourceMappingURL=code.js.map
-
-/***/ }),
+/* 601 */,
 /* 602 */
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
 
@@ -33063,38 +32238,7 @@ exports.getUserAgent = getUserAgent;
 
 
 /***/ }),
-/* 620 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Action extends mark_1.Mark {
-    constructor(title, target, actionParameters) {
-        super('action');
-        this.title = title;
-        this.target = target;
-        this.actionParameters = actionParameters;
-    }
-    toJSON() {
-        const actionMark = {
-            type: this.type,
-            attrs: {
-                title: this.title,
-                target: this.target
-            }
-        };
-        if (this.actionParameters) {
-            actionMark.attrs.parameters = this.actionParameters;
-        }
-        return actionMark;
-    }
-}
-exports.Action = Action;
-//# sourceMappingURL=action.js.map
-
-/***/ }),
+/* 620 */,
 /* 621 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -35608,30 +34752,7 @@ function write(cert, options) {
 
 
 /***/ }),
-/* 681 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const paragraph_1 = __webpack_require__(713);
-class BlockQuote extends index_1.TopLevelNode {
-    constructor() {
-        super(...arguments);
-        this.content = new index_1.ContentNode('blockquote');
-    }
-    paragraph() {
-        return this.content.add(new paragraph_1.Paragraph());
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.BlockQuote = BlockQuote;
-//# sourceMappingURL=block-quote.js.map
-
-/***/ }),
+/* 681 */,
 /* 682 */,
 /* 683 */,
 /* 684 */
@@ -37056,79 +36177,9 @@ function writePkcs8EdDSAPrivate(key, der) {
 /* 708 */,
 /* 709 */,
 /* 710 */,
-/* 711 */
-/***/ (function(__unusedmodule, exports) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class Mark {
-    constructor(type) {
-        this.type = type;
-    }
-    toJSON() {
-        return {
-            type: this.type
-        };
-    }
-}
-exports.Mark = Mark;
-//# sourceMappingURL=mark.js.map
-
-/***/ }),
+/* 711 */,
 /* 712 */,
-/* 713 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __webpack_require__(526);
-const hard_break_1 = __webpack_require__(398);
-const index_1 = __webpack_require__(360);
-const mention_1 = __webpack_require__(962);
-const text_1 = __webpack_require__(171);
-class Paragraph extends index_1.TopLevelNode {
-    constructor() {
-        super(...arguments);
-        this.content = new index_1.ContentNode('paragraph');
-    }
-    text(text, marks) {
-        return this.add(new text_1.Text(text, marks));
-    }
-    code(text) {
-        return this.add(text_1.code(text));
-    }
-    em(text) {
-        return this.add(text_1.em(text));
-    }
-    link(text, href, title) {
-        return this.add(text_1.link(text, href, title));
-    }
-    strong(text) {
-        return this.add(text_1.strong(text));
-    }
-    mention(id, text) {
-        return this.add(new mention_1.Mention(id, text));
-    }
-    emoji(shortName, id, text) {
-        return this.add(new emoji_1.Emoji({ shortName, id, text }));
-    }
-    hardBreak() {
-        return this.add(new hard_break_1.HardBreak());
-    }
-    add(node) {
-        this.content.add(node);
-        return this;
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.Paragraph = Paragraph;
-//# sourceMappingURL=paragraph.js.map
-
-/***/ }),
+/* 713 */,
 /* 714 */,
 /* 715 */,
 /* 716 */,
@@ -41329,115 +40380,10 @@ function createConnectionSSL (port, host, options) {
 /* 796 */,
 /* 797 */,
 /* 798 */,
-/* 799 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const list_item_1 = __webpack_require__(403);
-class OrderedList extends index_1.TopLevelNode {
-    constructor() {
-        super(...arguments);
-        this.content = new index_1.ContentNode('orderedList');
-    }
-    item() {
-        return this.content.add(new list_item_1.ListItem());
-    }
-    textItem(text, marks) {
-        this.item().paragraph().text(text, marks);
-        return this;
-    }
-    linkItem(text, href, title) {
-        this.item().paragraph().link(text, href, title);
-        return this;
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.OrderedList = OrderedList;
-//# sourceMappingURL=ordered-list.js.map
-
-/***/ }),
+/* 799 */,
 /* 800 */,
 /* 801 */,
-/* 802 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const nodes_1 = __webpack_require__(360);
-const application_card_1 = __webpack_require__(451);
-const block_quote_1 = __webpack_require__(681);
-const bullet_list_1 = __webpack_require__(849);
-const code_block_1 = __webpack_require__(561);
-const decision_list_1 = __webpack_require__(198);
-const heading_1 = __webpack_require__(366);
-const media_group_1 = __webpack_require__(823);
-const ordered_list_1 = __webpack_require__(799);
-const panel_1 = __webpack_require__(974);
-const paragraph_1 = __webpack_require__(713);
-const rule_1 = __webpack_require__(223);
-const task_list_1 = __webpack_require__(976);
-class Document {
-    constructor(attrs = { version: 1 }) {
-        this.attrs = attrs;
-        this.content = new nodes_1.ContentNode('doc');
-    }
-    applicationCard(title, text) {
-        return this.content.add(new application_card_1.ApplicationCard(title, text));
-    }
-    blockQuote() {
-        return this.content.add(new block_quote_1.BlockQuote());
-    }
-    bulletList() {
-        return this.content.add(new bullet_list_1.BulletList());
-    }
-    codeBlock(language) {
-        return this.content.add(new code_block_1.CodeBlock(language));
-    }
-    decisionList(localId) {
-        return this.content.add(new decision_list_1.DecisionList(localId));
-    }
-    heading(level) {
-        return this.content.add(new heading_1.Heading(level));
-    }
-    textHeading(level, text) {
-        return this.content.add(new heading_1.Heading(level).text(text));
-    }
-    mediaGroup() {
-        return this.content.add(new media_group_1.MediaGroup());
-    }
-    orderedList() {
-        return this.content.add(new ordered_list_1.OrderedList());
-    }
-    panel(type) {
-        return this.content.add(new panel_1.Panel(type));
-    }
-    paragraph() {
-        return this.content.add(new paragraph_1.Paragraph());
-    }
-    rule() {
-        this.content.add(new rule_1.Rule());
-        return this;
-    }
-    taskList(localId) {
-        return this.content.add(new task_list_1.TaskList(localId));
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { version: this.attrs.version });
-    }
-    toString() {
-        return JSON.stringify(this);
-    }
-}
-exports.Document = Document;
-//# sourceMappingURL=document.js.map
-
-/***/ }),
+/* 802 */,
 /* 803 */,
 /* 804 */,
 /* 805 */
@@ -42351,22 +41297,7 @@ function sync (path, options) {
 
 
 /***/ }),
-/* 819 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Em extends mark_1.Mark {
-    constructor() {
-        super('em');
-    }
-}
-exports.Em = Em;
-//# sourceMappingURL=em.js.map
-
-/***/ }),
+/* 819 */,
 /* 820 */
 /***/ (function(module) {
 
@@ -42375,39 +41306,7 @@ module.exports = {"$id":"beforeRequest.json#","$schema":"http://json-schema.org/
 /***/ }),
 /* 821 */,
 /* 822 */,
-/* 823 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const media_1 = __webpack_require__(371);
-class MediaGroup extends index_1.TopLevelNode {
-    constructor() {
-        super(...arguments);
-        this.content = new index_1.ContentNode('mediaGroup');
-    }
-    media(attrs) {
-        this.content.add(new media_1.Media(attrs));
-        return this;
-    }
-    link(id, collection) {
-        this.content.add(new media_1.Media({ id, collection, type: 'link' }));
-        return this;
-    }
-    file(id, collection) {
-        this.content.add(new media_1.Media({ id, collection, type: 'file' }));
-        return this;
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.MediaGroup = MediaGroup;
-//# sourceMappingURL=media-group.js.map
-
-/***/ }),
+/* 823 */,
 /* 824 */,
 /* 825 */
 /***/ (function(module) {
@@ -42966,38 +41865,7 @@ exports.getPublicSuffix = getPublicSuffix;
 
 /***/ }),
 /* 848 */,
-/* 849 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-const list_item_1 = __webpack_require__(403);
-class BulletList extends index_1.TopLevelNode {
-    constructor() {
-        super(...arguments);
-        this.content = new index_1.ContentNode('bulletList');
-    }
-    item() {
-        return this.content.add(new list_item_1.ListItem());
-    }
-    textItem(text, marks) {
-        this.item().paragraph().text(text, marks);
-        return this;
-    }
-    linkItem(text, href, title) {
-        this.item().paragraph().link(text, href, title);
-        return this;
-    }
-    toJSON() {
-        return this.content.toJSON();
-    }
-}
-exports.BulletList = BulletList;
-//# sourceMappingURL=bullet-list.js.map
-
-/***/ }),
+/* 849 */,
 /* 850 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -52809,65 +51677,8 @@ function hasNextPage (link) {
 /* 933 */,
 /* 934 */,
 /* 935 */,
-/* 936 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-const colorPattern = /^#[0-9a-f]{6}$/;
-class TextColor extends mark_1.Mark {
-    constructor(color) {
-        super('textColor');
-        this.color = color;
-        if (!colorPattern.test(color)) {
-            throw new Error(`Color ${color} does not match ^#[0-9a-f]{6}$`);
-        }
-    }
-    toJSON() {
-        return {
-            type: this.type,
-            attrs: {
-                color: this.color
-            }
-        };
-    }
-}
-exports.TextColor = TextColor;
-//# sourceMappingURL=text-color.js.map
-
-/***/ }),
-/* 937 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __webpack_require__(711);
-class Link extends mark_1.Mark {
-    constructor(href, title) {
-        super('link');
-        this.href = href;
-        this.title = title;
-    }
-    toJSON() {
-        const linkMark = {
-            type: this.type,
-            attrs: {
-                href: this.href
-            }
-        };
-        if (this.title) {
-            linkMark.attrs.title = this.title;
-        }
-        return linkMark;
-    }
-}
-exports.Link = Link;
-//# sourceMappingURL=link.js.map
-
-/***/ }),
+/* 936 */,
+/* 937 */,
 /* 938 */
 /***/ (function(module) {
 
@@ -54902,37 +53713,7 @@ module.exports = {
 /***/ }),
 /* 960 */,
 /* 961 */,
-/* 962 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __webpack_require__(360);
-function mention(id, text) {
-    return new Mention(id, text);
-}
-exports.mention = mention;
-class Mention extends index_1.InlineNode {
-    constructor(id, text) {
-        super();
-        this.id = id;
-        this.text = text;
-    }
-    toJSON() {
-        return {
-            type: 'mention',
-            attrs: {
-                id: this.id,
-                text: this.text
-            }
-        };
-    }
-}
-exports.Mention = Mention;
-//# sourceMappingURL=mention.js.map
-
-/***/ }),
+/* 962 */,
 /* 963 */,
 /* 964 */
 /***/ (function(__unusedmodule, exports, __webpack_require__) {
@@ -55762,73 +54543,9 @@ module.exports = __webpack_require__(512)
 
 /***/ }),
 /* 973 */,
-/* 974 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __webpack_require__(849);
-const heading_1 = __webpack_require__(366);
-const index_1 = __webpack_require__(360);
-const ordered_list_1 = __webpack_require__(799);
-const paragraph_1 = __webpack_require__(713);
-class Panel extends index_1.TopLevelNode {
-    constructor(panelType) {
-        super();
-        this.panelType = panelType;
-        this.content = new index_1.ContentNode('panel');
-    }
-    heading(level) {
-        return this.content.add(new heading_1.Heading(level));
-    }
-    paragraph() {
-        return this.content.add(new paragraph_1.Paragraph());
-    }
-    orderedList() {
-        return this.content.add(new ordered_list_1.OrderedList());
-    }
-    bulletList() {
-        return this.content.add(new bullet_list_1.BulletList());
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                panelType: this.panelType
-            } });
-    }
-}
-exports.Panel = Panel;
-//# sourceMappingURL=panel.js.map
-
-/***/ }),
+/* 974 */,
 /* 975 */,
-/* 976 */
-/***/ (function(__unusedmodule, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const task_1 = __webpack_require__(284);
-const index_1 = __webpack_require__(360);
-class TaskList extends index_1.TopLevelNode {
-    constructor(localId) {
-        super();
-        this.localId = localId;
-        this.content = new index_1.ContentNode('taskList');
-    }
-    task(localId, state) {
-        return this.content.add(new task_1.Task(localId, state));
-    }
-    toJSON() {
-        return Object.assign({}, this.content.toJSON(), { attrs: {
-                localId: this.localId
-            } });
-    }
-}
-exports.TaskList = TaskList;
-//# sourceMappingURL=task-list.js.map
-
-/***/ }),
+/* 976 */,
 /* 977 */,
 /* 978 */,
 /* 979 */,

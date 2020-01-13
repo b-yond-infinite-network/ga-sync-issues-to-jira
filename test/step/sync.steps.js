@@ -1,5 +1,8 @@
 const merge 		= require( 'deepmerge' )
 
+const { CaptureConsole } = require('@aoberoi/capture-console' )
+const captureConsole = new CaptureConsole()
+
 const { Before, After, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
 
 const { mockGHActionsIssue, mockNonGHActionsIssue }     = require( '../helper/mockGH-actions' )
@@ -38,17 +41,21 @@ Before( () => {
 	jiraApiToken        = 'testAPITOKEN'
 } )
 
-Given( /^The action triggered is '(.*)' with project '(.*)', issue type '(.*)' and label '(.*)'$/,
-	    ( eventType, projectName, issueType, labelForIssue ) => {
+Given( /^The action is configured with project '(.*)', issue type '(.*)' and label '([^']*)'$/,
+	    ( projectName, issueType, labelForIssue ) => {
 	actionProjectName 		= projectName
 	actionIssueType 		= issueType
-	overloadGITHUBValues 	= { "action": eventType, "issue" : { "labels" : [ { "name": labelForIssue } ] } }
+	overloadGITHUBValues 	= { "issue" : { "labels" : [ { "name": labelForIssue } ] } }
 } )
 
 And( /^the change is set on '(.*)' with a from value of '(.*)' in GITHUB$/, ( changeOn, changeFrom ) => {
-	const changeOnObject = {}
-	changeOnObject[ changeOn ] = { "from": changeFrom }
-	overloadGITHUBValues = merge( overloadGITHUBValues, { "changes": changeOnObject } )
+	// const changeOnObject = {}
+	// changeOnObject[ changeOn ] = { "from": changeFrom }
+	// overloadGITHUBValues = merge( overloadGITHUBValues, { "changes": changeOnObject } )
+	if( !overloadGITHUBValues.changes )
+		overloadGITHUBValues.changes = {}
+	
+	overloadGITHUBValues.changes[ changeOn ] = { "from": changeFrom }
 } )
 
 And( /^the title is now set to '(.*)' in GITHUB$/, titleContent => {
@@ -83,21 +90,64 @@ And( /^we add a label '(.*)'$/, labelToAdd => {
 	overloadGITHUBValues 	= { "issue" : { "labels" : [ { "name": labelToAdd } ] } }
 } )
 
-When( /^the action triggers$/,  (  ) => {
+And( /^there's no assignee$/, () => {} )
+
+When( /^the action triggers$/,  async (  ) => {
 	mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken, overloadJIRAValues )
-	mockGHActionsIssue( actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
+	await mockGHActionsIssue( 'opened', actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
 })
 
-Then(/^we upgrade JIRA, write '(.*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
+When( /^a '(.*)' action triggers$/,  async ( actionStatus ) => {
+	mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	await mockGHActionsIssue( actionStatus, actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
+})
+
+Then(/^we upgrade JIRA, write '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
+	captureConsole.startCapture()
 	const consoleLogsOutput = mockLog()
 	
 	const { syncJiraWithGH } = require( '../../src/sync' )
 	await syncJiraWithGH()
 	
 	console.log = oldLog
+	captureConsole.stopCapture()
+	const consoleErrors = captureConsole.getCapturedText()
 	
-	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) ) ).not.toEqual( -1 )
-	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) !== -1 ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
+} )
+
+Then(/^we upgrade JIRA, write '([^']*)' and '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs, secondMessageToFind ) => {
+	captureConsole.startCapture()
+	const consoleLogsOutput = mockLog()
+	
+	const { syncJiraWithGH } = require( '../../src/sync' )
+	await syncJiraWithGH()
+	
+	console.log = oldLog
+	captureConsole.stopCapture()
+	const consoleErrors = captureConsole.getCapturedText()
+	
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( secondMessageToFind ) !== -1 ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) !== -1 ) ).not.toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
+} )
+
+Then(/^we upgrade JIRA, don't write '([^']*)' in the logs and exit successfully$/, async ( messageNotToFindInLogs ) => {
+	captureConsole.startCapture()
+	const consoleLogsOutput = mockLog()
+	
+	const { syncJiraWithGH } = require( '../../src/sync' )
+	await syncJiraWithGH()
+	
+	console.log = oldLog
+	captureConsole.stopCapture()
+	const consoleErrors = captureConsole.getCapturedText()
+	
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageNotToFindInLogs ) !== -1 ) ).toEqual( -1 )
+	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) !== -1 ) ).not.toEqual( -1 )
 	expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
 } )
 
@@ -106,5 +156,7 @@ After(() => {
 	unmockJIRACalls()
 } )
 
-
+//TODO let jest-cucumber guy know that a Scenario Outline step with more than 2 variables
+// ( And '.*' because '.*' ) fails if we replace on by the outline variables
+// ( And '.*' because '<outlineVariable>'
 Fusion( '../feature/Sync.feature' )

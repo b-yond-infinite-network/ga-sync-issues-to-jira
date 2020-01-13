@@ -1,22 +1,31 @@
 
 const merge 		= require( 'deepmerge' )
-const nock          = require('nock')
-const path          = require('path')
+const nock          = require( 'nock' )
+const path          = require( 'path' )
+const fs            = require( 'fs' )
+const util          = require( 'util' )
+const fileAccess    = util.promisify( fs.access )
 
 function setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, payloadToLoad ){
     // ACTION PROPERTIES
-    process.env[ 'INPUT_DEBUG_MODE' ] = false
-    process.env[ 'INPUT_SUBTASK_MODE' ] = true
+    process.env[ 'INPUT_DEBUG_MODE' ]           = true
+    process.env[ 'INPUT_SUBTASK_MODE' ]         = true
     // the key (prefix) used by Jira for the project
-    process.env[ 'INPUT_JIRA_PROJECTKEY' ] = jiraKey
+    process.env[ 'INPUT_JIRA_PROJECTKEY' ]      = jiraKey
     // the issue type to use to track the Github Issues
     process.env[ 'INPUT_JIRA_ISSUETYPE_NAME' ] = jiraIssueType
     // hostname to connect to Jira (do not add https://)
-    process.env[ 'INPUT_JIRA_BASEURL' ] = jiraBaseURL
+    process.env[ 'INPUT_JIRA_BASEURL' ]         = jiraBaseURL
     // user email/login address to use the token of
-    process.env[ 'INPUT_JIRA_USEREMAIL' ] = jiraUserEmail
+    process.env[ 'INPUT_JIRA_USEREMAIL' ]       = jiraUserEmail
     // token to use to connect to Jira
-    process.env[ 'INPUT_JIRA_APITOKEN' ] = jiraApiToken
+    process.env[ 'INPUT_JIRA_APITOKEN' ]        = jiraApiToken
+    // transition name in JIRA equivalent to GITHUB assigned (In Progress)
+    process.env[ 'INPUT_JIRA_STATE_INPROGRESS' ] = "In Progress"
+    // transition name in JIRA equivalent to GITHUB closed (Done)
+    process.env[ 'INPUT_JIRA_STATE_DONE' ]      = "Done"
+    // transition name in JIRA equivalent to GITHUB open/reopened (To Do)
+    process.env[ 'INPUT_JIRA_STATE_TODO' ]      = "To Do"
     
     process.env['INPUT_REPO-TOKEN']             = "FAKETOKEN"
     
@@ -25,17 +34,23 @@ function setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, j
 }
 
 function mockNonGHActionsIssue( ) {
-    setGAEnvironment( '', '', '', '', '', 'payload.non-gh.Issue.json' )
+    setGAEnvironment( '', '', '', '', '', 'action-capture/action.non-gh.issue.json' )
     
     const github            = require('@actions/github')
     github.context.payload  = require( process.env['GITHUB_EVENT_PATH'] )
 }
 
-function mockGHActionsIssue( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overwriteContextPayloadValues ) {
-    setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, 'payload.gh.Issue.open.json' )
+async function mockGHActionsIssue( gaActionChange, jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overwriteContextPayloadValues ) {
+    try{
+        await fileAccess( __dirname + '/action-capture/action.issue.' + gaActionChange + '.json' )
+        
+        setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, 'action-capture/action.issue.' + gaActionChange + '.json'  )
+    }
+    catch( accessError ) {
+        setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, 'action-capture/action.issue.opened.json'  )
+    }
     
-    
-    const github            = require('@actions/github')
+    const github            = require( '@actions/github' )
     github.context.payload  = require( process.env['GITHUB_EVENT_PATH'] )
     if( overwriteContextPayloadValues ){
         github.context.payload = merge( github.context.payload,

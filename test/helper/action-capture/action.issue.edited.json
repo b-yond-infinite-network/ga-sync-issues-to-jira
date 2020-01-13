@@ -2,7 +2,7 @@
   "action": "edited",
   "changes": {
     "title": {
-      "from": "A github Issue in Github"
+      "from": "A JIRA subtask"
     }
   },
   "issue": {
@@ -24,7 +24,7 @@
         "id": 1652440629,
         "name": "TES-2",
         "node_id": "MDU6TGFiZWwxNjUyNDQwNjI5",
-        "url": "https://fakegithub/repo/labels/TES-2"
+        "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TES-2"
       }
     ],
     "labels_url": "https://fakegithub/repo/issues/1/labels{/name}",
@@ -34,7 +34,7 @@
     "number": 1,
     "repository_url": "https://fakegithub",
     "state": "open",
-    "title": "A JIRA subtask",
+    "title": "My new title",
     "updated_at": "2019-11-01T22:01:10Z",
     "url": "https://fakegithub/repo/issues/1"
   }

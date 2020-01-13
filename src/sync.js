@@ -2,17 +2,14 @@ const core              = require( '@actions/core' )
 
 const handleIssues          = require( './ghIssuesHandling' )
 const handleSubtask         = require( './jiraSubtaskHandling' )
-const { jiraUpdateIssue }   = require( './jiraUpdate' )
+const handleSync            = require( './jiraUpdate' )
 
 async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
         const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
-                      ? ( messageToLog ) => {
-                console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>'
-            }
-                      : ( messageToLog ) => {
-            }
+                      ? ( messageToLog ) => ( console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>' )
+                      : (  ) => {}
     
     
         const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
@@ -32,18 +29,7 @@ async function syncJiraWithGH() {
         }
     
         for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
-            console.log( `Updating JIRA Issue: ${ JSON.stringify( currentSubtaskOrIssue.key ) }` )
-            const changeToPush = listPrioritizedDifference( issueEventTriggered, currentSubtaskOrIssue )
-            DEBUG( changeToPush )
-            if( Object.keys( changeToPush ).length <= 0 ) {
-                console.log( `-- all changes are already synced between issue#${ issueEventTriggered.details[ 'number' ] } in GITHUB and issue ${ currentSubtaskOrIssue.key } in JIRA` )
-                break
-            }
-        
-            const updateResult = await jiraUpdateIssue( currentSubtaskOrIssue, changeToPush )
-            if( updateResult ) {
-                console.log( `--- updated: ${ JSON.stringify( changeToPush ) }` )
-            }
+            await handleSync( currentSubtaskOrIssue, issueEventTriggered, DEBUG )
         }
         
         console.log( `==> action success` )
@@ -57,44 +43,6 @@ async function syncJiraWithGH() {
     }
 }
 
-function listPrioritizedDifference( issueChangeTriggered, subtaskOrIssueToChange ){
-    //TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
-    const changes = {}
-    
-    if( issueChangeTriggered.event === 'open'
-        || issueChangeTriggered.event === 'edited'
-        || issueChangeTriggered.event === 'reopened'
-        || issueChangeTriggered.event === 'labeled' ){
-        if( issueChangeTriggered.details.title
-            && subtaskOrIssueToChange.fields
-            && subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
-            changes.summary = issueChangeTriggered.details.title
-    
-        if( issueChangeTriggered.details.body
-            && subtaskOrIssueToChange.fields
-            && subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body )
-            changes.description = issueChangeTriggered.details.body
-    }
 
-    // if( issueChangeTriggered.event === 'edited' ){
-    //     if( 'title' in issueChangeTriggered.changes )
-    //         changes.summary = issueChangeTriggered.details.title
-    //
-    //
-    //     if( 'description' in issueChangeTriggered.changes )
-    //         changes.body = issueChangeTriggered.changes.description
-    // }
-    
-    
-    if( issueChangeTriggered.event === 'deleted' ) {
-        changes.delete = true
-    }
-    
-    if( issueChangeTriggered.event === 'closed' ) {
-        changes.closed = true
-    }
-    
-    return changes
-}
 
 module.exports.syncJiraWithGH = syncJiraWithGH

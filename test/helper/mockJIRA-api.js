@@ -20,16 +20,19 @@ function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jira
 	// const dirOfCaller    = path.dirname(callerSiteCaller || '' )
 	const absoluteDirPath = path.resolve( __dirname, 'rest-capture-jira/v2' )
 	
+	const mockScope = nock( jiraBaseUrl + basePrefix ).persist( true )
+													  .log( console.log )
+	
 	walkthroughDirectory( absoluteDirPath,
 						  false,
 						  ( nameFile, pathFile ) => {
 		if( overrideForFiles && overrideForFiles.hasOwnProperty( nameFile ) ){
 			const newMockData = merge( mockDefaults, overrideForFiles[ nameFile ] )
-			createMockEndpointFromFileName( 'jira', nameFile, pathFile, jiraBaseURL + basePrefix, newMockData )
+			createMockEndpointFromFileName( mockScope, newMockData, 'jira', nameFile, pathFile )
 			return
 		}
 		
-		createMockEndpointFromFileName( 'jira', nameFile, pathFile, jiraBaseURL + basePrefix, mockDefaults )
+		createMockEndpointFromFileName( mockScope, mockDefaults, 'jira', nameFile, pathFile )
 	} )
 }
 
@@ -47,7 +50,7 @@ function walkthroughDirectory( directoryName, bRecursive, fnDoForEachFile ) {
     } )
 }
 
-function createMockEndpointFromFileName( endpointPrefix, nameFile, pathFile, jiraBaseURL, mockDefaults ){
+function createMockEndpointFromFileName( mockScope, mockDefaults, endpointPrefix, nameFile, pathFile ){
 	const fileExtension = path.extname( nameFile )
 	if( fileExtension !== '.json'
 		&& fileExtension !== '.html' )
@@ -102,15 +105,14 @@ function createMockEndpointFromFileName( endpointPrefix, nameFile, pathFile, jir
 		overrideReplyData: 		fileData !== '' ? fileData: null
 	}
 	
-	mockCall( jiraBaseURL,
+	mockCall( mockScope,
 			  mockDefaults,
 			  uriEndpoint,
 			  matchOptions.groups.type ? matchOptions.groups.type: 'GET',
-			  true,
 			  customAndOverride )
 }
 
-function mockCall( baseURL, mockData, uriEndpoint, httpVerb, persistEndpoint, customAndOverride ){
+function mockCall( mockScope, mockData, uriEndpoint, httpVerb, customAndOverride ){
 	const { overrideAuth, customHeaders, customQueryParams, customQueryBody, customReplyHeaders, overrideReplyStatus, overrideReplyData } = customAndOverride
 	const httpHeaders = mockData && mockData.globalHeaders
 						? merge( mockData.globalHeaders, customHeaders )
@@ -154,29 +156,32 @@ function mockCall( baseURL, mockData, uriEndpoint, httpVerb, persistEndpoint, cu
 						  ? /.*/
 						  : httpQueryBody
 	
-	let mockScope = null
-	
+	let newInterceptor = null
 	if( httpBodyCheck )
-		mockScope = nock( baseURL ).persist( persistEndpoint )
-								   .intercept( new RegExp( '/' + uriEndpoint + '$', 'i' ), httpVerb, httpBodyCheck )
-
+		newInterceptor = mockScope.intercept( currentURI  => ( uriCheck( currentURI, uriEndpoint ) ), httpVerb, httpBodyCheck )
+	
 	else
-		mockScope = nock( baseURL ).persist( persistEndpoint )
-								   .intercept( new RegExp( '/' + uriEndpoint + '$', 'i' ), httpVerb )
+		newInterceptor = mockScope.intercept( currentURI  => ( uriCheck( currentURI, uriEndpoint ) ), httpVerb )
 	
 	if( httpBasicAuth )
-		mockScope.basicAuth( httpBasicAuth )
+		newInterceptor.basicAuth( httpBasicAuth )
 	
 	if( httpHeaders )
-		mockScope.matchHeader( httpHeaders )
+		newInterceptor.matchHeader( httpHeaders )
 	
-	if( httpQueryParams === 'all' )
-		mockScope.query( true )
+	if( !httpQueryParams ||
+		httpQueryParams === 'all' )
+		newInterceptor.query( true )
 	
 	else if( httpQueryParams )
-		mockScope.query( httpQueryParams )
+		newInterceptor.query( httpQueryParams )
 	
-	mockScope.reply( httpReplyStatus, httpReplyData, httpReplyHeaders )
+	newInterceptor.reply( httpReplyStatus, httpReplyData, httpReplyHeaders )
+}
+
+function uriCheck( uirToCheck, uriReferenceEndPoint ){
+	const uriEndsTheSame = uirToCheck.toLowerCase().endsWith( '/' + uriReferenceEndPoint.toLowerCase() )
+	return uriEndsTheSame
 }
 
 

@@ -21,6 +21,18 @@ inputs:
     description: 'the JIRA issue type to use in JIRA to track the GITHUB Issues'
     required: true
     default: 'Subtask'
+  JIRA_STATE_INPROGRESS:
+    description: 'the JIRA transition name equivalent to GITHUB assigned (In Progress)'
+    required: true
+    default: 'In Progress'
+  JIRA_STATE_DONE:
+    description: 'the JIRA transition name equivalent to GITHUB closed (Done)'
+    required: true
+    default: 'Done'
+  JIRA_STATE_TODO:
+    description: 'the JIRA transition name in JIRA equivalent to GITHUB open/reopened (To Do)'
+    required: true
+    default: 'To Do'
   SUBTASK_MODE:
     description: 'Should we attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
     required: true

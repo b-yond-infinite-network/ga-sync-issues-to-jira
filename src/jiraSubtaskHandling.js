@@ -59,9 +59,9 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			leftOverLabelToUpdateFromParent
 		} = await listToUpdateDirectly( jiraSession, labeledJIRAIssueKeySubtasks, labeledJIRAIssuesKeyToAttachTo )
 		
-		const summaryToLookFor = ( issueChanges.event === 'edited' && 'title' in issueChanges.changes
+		const summaryToLookFor = ( issueChanges.changes && 'title' in issueChanges.changes
 								   ? issueChanges.changes.title.from
-								   : issueChanges.details[ 'title' ] )
+								   : issueChanges.details.title )
 		const jiraIssueToUpdateFromParent = await listToUpdateByAttachingToParent( jiraSession,
 																				   jiraProjectKey,
 																				   jiraIssueTypeName,
@@ -197,7 +197,6 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			if( foundSubtask )
 				return foundSubtask
 			
-			console.log( `----! no subtasks found with the title '${ summaryToLookForInSubtasks }' found, creating a new one` )
 			const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookForInSubtasks )
 			return findIssue( jiraSession, createdIssue.key )
 		} ) )
@@ -216,6 +215,7 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 		if( foundWithTitle )
 			return foundWithTitle
 		
+		console.log( `----! no subtasks found with the title '${ summaryToLookForInSubtasks }' found, creating a new one` )
 		return null
 	}
 	

@@ -32,7 +32,7 @@ const mockLog           = ( function( ) {
 Before( ( ) => {
     actionProjectName   = 'TEST'
     actionIssueType     = 'Subtask'
-    overloadValues      = { "changes": { "title": { "from": "A github Issue in Github" } } }
+    overloadValues      = null //{ "changes": { "title": { "from": "A github Issue in Github" } } }
     
     jiraBaseURL         = 'fakejira'
     jiraUserEmail       = 'testuser@test.domain'
@@ -80,14 +80,13 @@ And( 'my JIRA credentials are correct', () => {
     mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken )
 } )
 
-And( /the issue in GITHUB has the same title, body and comments than the labelled '(.*)' issue in JIRA$/,  ( labelForIssue ) => {
-    const valueInTest123 = require( "../helper/rest-capture-jira/v2/jira.issue.TEST-456{all}" )
+And( /the issue in GITHUB has the same title, body and comments than issue '([^']*)' in JIRA$/,  ( labelForIssue ) => {
+    const valueInTest123 = require( "../helper/rest-capture-jira/v2/jira.issue." + labelForIssue )
     overloadValues = merge( overloadValues,
                             { "issue":
                                     {
                                         "title": valueInTest123[ 'fields' ][ 'summary' ],
                                         "body" : valueInTest123[ 'fields' ][ 'description' ],
-                                        "labels": [ { "name": labelForIssue } ],
                                         "number" : 1
                                     } } )
 } )
@@ -96,8 +95,8 @@ When( /^the action is not triggered from a github action$/, function () {
     mockNonGHActionsIssue( )
 } )
 
-When( /^the action is triggered$/, async (  ) => {
-    mockGHActionsIssue( actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadValues )
+When( /^the action is triggered on an opened issue$/, async (  ) => {
+    await mockGHActionsIssue( 'opened', actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadValues )
 })
 
 
@@ -142,6 +141,7 @@ Then(/^we fail the action, exit with error '(.*)' and write "(.*)" in the logs$/
 } )
 
 Then(/^we finish the action successfully and write '([^']*)' as an info in the logs$/, async ( warningToFindInLogs ) => {
+    captureConsole.startCapture()
     const consoleLogsOutput = mockLog()
     
     const { syncJiraWithGH } = require( '../../src/sync' )
@@ -149,6 +149,8 @@ Then(/^we finish the action successfully and write '([^']*)' as an info in the l
     
     console.log = oldLog
     
+    captureConsole.stopCapture()
+    const consoleErrors = captureConsole.getCapturedText()
     expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( '==> action success' ) !== - 1 ) ).not.toEqual( -1 )
     expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Action Finished' ) !== -1 ) ).not.toEqual( -1 )
     expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( warningToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
