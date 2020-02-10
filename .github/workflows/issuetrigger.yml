@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: b-yond-infinite-network/ga-sync-issues-to-jira@master
         with:
-          JIRA_PROJECTKEY:  GSTJ
+          JIRA_PROJECTKEY:  OS
           JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
           JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
           JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}

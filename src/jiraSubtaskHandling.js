@@ -85,19 +85,13 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 	}
 	
 	async function loginToJiraAndCheckMyself( jiraSession ) {
-		try {
-			await jiraSession.myself.getMyself()
-		}
+		try { await jiraSession.myself.getMyself() }
 		
-		catch( myselfError ) {
-			manageJIRAAPIError( myselfError, jiraSession )
-		}
+		catch( myselfError ) { manageJIRAAPIError( myselfError, jiraSession ) }
 	}
 	
 	async function checkProjectExist( jiraSession, jiraProjectKey ) {
-		try {
-			return await jiraSession.project.getProject( { projectIdOrKey: jiraProjectKey } )
-		}
+		try { return await jiraSession.project.getProject( { projectIdOrKey: jiraProjectKey } ) }
 		
 		catch( projectError ) {
 			manageJIRAAPIError( projectError,
@@ -303,44 +297,6 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 								'Create Issue failed' )
 		}
 	}
-	
-	// async function syncJiraFromGH( jiraSession, jiraProjectKey, jiraIssueToSync, ghIssue ) {
-	//     // const issueData = {
-	//     //     "update": {},
-	//     //     "fields": {
-	//     //         "summary": ghIssue.title,
-	//     //         "parent": {
-	//     //             "key": parentStoryKey
-	//     //         },
-	//     //         "issuetype": {
-	//     //             "name": issueTypeNameToUse
-	//     //         },
-	//     //         "project": {
-	//     //             "key": jiraProjectKey
-	//     //         },
-	//     //         "description": {
-	//     //             "type": "doc",
-	//     //             "version": 1,
-	//     //             "content": [
-	//     //                 {
-	//     //                     "type": "paragraph",
-	//     //                     "content": [
-	//     //                         {
-	//     //                             "text": ghIssue.body,
-	//     //                             "type": "text"
-	//     //                         }
-	//     //                     ]
-	//     //                 }
-	//     //             ]
-	//     //         },
-	//     //         "labels": [
-	//     //             "GITHUB" + ghIssue.id
-	//     //         ]
-	//     //     }
-	//     // }
-	//     // console.log( `About to create the jira issue of type : ${ JSON.stringify( issueTypeNameToUse ) } with datas: ${ issueData }` )
-	//     // await jiraSession.issue.createIssue( issueData )
-	// }
 	
 	function manageJIRAAPIError( triggeredError, jiraSession, messageToLog, exceptionToRaise ) {
 		if( triggeredError.message ) {

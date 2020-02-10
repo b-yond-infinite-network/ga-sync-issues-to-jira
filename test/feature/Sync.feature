@@ -23,7 +23,7 @@ Feature: Synchronization of fields and states
     And the body is now set to 'Nice description' in GITHUB
     And the description was set to 'An old description' in JIRA
     When a '<GithubActionStatus>' action triggers
-    Then we upgrade JIRA, write '--- updated with: {' and '"description":"Nice description"' in the logs and exit successfully
+    Then we upgrade JIRA, write '--- updated with: {' and '"description":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Nice description"}]}],"version":1}' in the logs and exit successfully
 
     Examples:
       | GithubActionStatus  |
