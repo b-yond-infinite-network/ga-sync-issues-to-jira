@@ -21723,17 +21723,24 @@ function octokitValidate(octokit) {
 
 "use strict";
 
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const os = __webpack_require__(87);
+const os = __importStar(__webpack_require__(87));
 /**
  * Commands
  *
  * Command Format:
- *   ##[name key=value;key=value]message
+ *   ::name key=value,key=value::message
  *
  * Examples:
- *   ##[warning]This is the user warning message
- *   ##[set-secret name=mypassword]definitelyNotAPassword!
+ *   ::warning::This is the message
+ *   ::set-env name=MY_VAR::some value
  */
 function issueCommand(command, properties, message) {
     const cmd = new Command(command, properties, message);
@@ -21758,34 +21765,39 @@ class Command {
         let cmdStr = CMD_STRING + this.command;
         if (this.properties && Object.keys(this.properties).length > 0) {
             cmdStr += ' ';
+            let first = true;
             for (const key in this.properties) {
                 if (this.properties.hasOwnProperty(key)) {
                     const val = this.properties[key];
                     if (val) {
-                        // safely append the val - avoid blowing up when attempting to
-                        // call .replace() if message is not a string for some reason
-                        cmdStr += `${key}=${escape(`${val || ''}`)},`;
+                        if (first) {
+                            first = false;
+                        }
+                        else {
+                            cmdStr += ',';
+                        }
+                        cmdStr += `${key}=${escapeProperty(val)}`;
                     }
                 }
             }
         }
-        cmdStr += CMD_STRING;
-        // safely append the message - avoid blowing up when attempting to
-        // call .replace() if message is not a string for some reason
-        const message = `${this.message || ''}`;
-        cmdStr += escapeData(message);
+        cmdStr += `${CMD_STRING}${escapeData(this.message)}`;
         return cmdStr;
     }
 }
 function escapeData(s) {
-    return s.replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+    return (s || '')
+        .replace(/%/g, '%25')
+        .replace(/\r/g, '%0D')
+        .replace(/\n/g, '%0A');
 }
-function escape(s) {
-    return s
+function escapeProperty(s) {
+    return (s || '')
+        .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
-        .replace(/]/g, '%5D')
-        .replace(/;/g, '%3B');
+        .replace(/:/g, '%3A')
+        .replace(/,/g, '%2C');
 }
 //# sourceMappingURL=command.js.map
 
@@ -27013,10 +27025,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+    result["default"] = mod;
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const command_1 = __webpack_require__(431);
-const os = __webpack_require__(87);
-const path = __webpack_require__(622);
+const os = __importStar(__webpack_require__(87));
+const path = __importStar(__webpack_require__(622));
 /**
  * The code to exit an action
  */
@@ -45155,24 +45174,100 @@ function translateGITHUBMarkdownToADF( markdownText ){
 
 
 function buildTreeFromMarkdown( rawTextMarkdown ){
-	const arrOfNodes = rawTextMarkdown.split( '\n' ).flatMap( currentLine => {
-		return translateMarkdownLineToADF( currentLine )
-		//{ adfType, typeParam, textToEmphasis, textPosition }
+	
+	///MARDKOWN logic - closing code blocks
+	//  When a code block is open, it should be closed by a triple caret, everything in between is code
+	const { codeBlockHandled } = rawTextMarkdown.split( '\n' ).reduce( ( { codeBlockHandled, indexCurrentCodeBloc }, currentLine, indexCurrentLine ) => {
+		const lineTranslation = translateMarkdownLineToADF( currentLine )
+		
+		if( typeof indexCurrentCodeBloc === "undefined"
+			&& ( lineTranslation.adfType === 'codeBlock'
+				 || lineTranslation.nodeAttached ) ){
+			codeBlockHandled.push( lineTranslation )
+			if( lineTranslation.nodeAttached ){
+				codeBlockHandled.push( lineTranslation.nodeAttached )
+			}
+			
+			return { codeBlockHandled, indexCurrentCodeBloc: codeBlockHandled.length - 1 }
+		}
+		
+		if( typeof indexCurrentCodeBloc !== "undefined"
+			&& ( lineTranslation.adfType !== 'codeBlock'
+				 || typeof lineTranslation.typeParam === "undefined"
+				 || lineTranslation.typeParam !== '' ) ) {
+			const textToAdd = lineTranslation.textPosition >= codeBlockHandled[ indexCurrentCodeBloc ].textPosition
+							  ? currentLine.slice( codeBlockHandled[ indexCurrentCodeBloc ].textPosition )
+							  : currentLine
+			codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis = codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis
+																	  + ( codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis === ''
+																		  ? textToAdd
+																		  : '\n' + textToAdd )
+			return { codeBlockHandled, indexCurrentCodeBloc }
+		}
+		
+		if( typeof indexCurrentCodeBloc !== "undefined"
+			&& lineTranslation.adfType === 'codeBlock'
+			&& typeof lineTranslation.typeParam !== "undefined"
+			&& lineTranslation.typeParam === '' ){
+			return { codeBlockHandled }
+		}
+		
+		codeBlockHandled.push( lineTranslation )
+		
+		return { codeBlockHandled }
+	}, { codeBlockHandled: [] } )
+	
+	//MARKDOWN -- handling of unfinished empty codeBlock
+	const cleanedCodeBlock = codeBlockHandled.filter( ( currentNode ) => {
+		if( currentNode.adfType !== 'codeBlock' )
+			return currentNode
+		
+		if( currentNode.textToEmphasis !== '' )
+			return currentNode
 	} )
 	
-	const { accumulatedNodes } = arrOfNodes.reduce( ( { accumulatedNodes, indexCurrentCodeBlock, indexCurrentList, lastWasEmptyLine }, currentLineNode ) => {
+	///MARKDOWN logic
+	// empty line handling => heading is an exception, otherwise non-empty line aggregate in the parent element
+	// For all other type, following a markdown with any paragraph of text is considered a continuation, so we aggregate
+	//  all subsequent text into the same parent element (paragraph, list item, ...)
+	const { breakedLineNodes } = cleanedCodeBlock.reduce( ( { breakedLineNodes, currentParent }, currentLineNode ) => {
 		
-		if( !lastWasEmptyLine
-			&& currentLineNode.adfType === 'paragraph'
-			&& currentLineNode.textToEmphasis.match( /^(?:[\s])*$/ ) ){
-			return { accumulatedNodes, indexCurrentCodeBlock, indexCurrentList, lastWasEmptyLine: true }
+		if( currentLineNode.adfType === 'heading'
+			|| currentLineNode.adfType === 'codeBlock' ){
+			breakedLineNodes.push( currentLineNode )
+			return { breakedLineNodes }
 		}
 		
-		if( lastWasEmptyLine
-			&& currentLineNode.adfType === 'paragraph'
-			&& currentLineNode.textToEmphasis.match( /^(?:[\s])*$/ ) ) {
-			return { accumulatedNodes, indexCurrentCodeBlock }
+		if( currentLineNode.adfType !== 'paragraph' ){
+			breakedLineNodes.push( currentLineNode )
+			return { breakedLineNodes, currentParent: currentLineNode }
 		}
+		
+		if( /^(?:[\s]*)$/.test( currentLineNode.textToEmphasis ) ) {
+			//we're breaking into a new paragraph
+			return { breakedLineNodes }
+		}
+		
+		//this is a non-empty paragraph, if we are already filling up a paragraph, let's add the text inside
+		if( currentParent ){
+			const textToAdd = currentLineNode.textPosition >= currentParent.textPosition
+							  ? currentLineNode.textToEmphasis.slice( currentParent.textPosition )
+							  : currentLineNode.textToEmphasis
+			currentParent.textToEmphasis = currentParent.textToEmphasis + ( currentLineNode.textToEmphasis.charAt( 0 ) !== ' '
+																			? ' ' + textToAdd
+																			: textToAdd )
+			return { breakedLineNodes, currentParent }
+		}
+		
+		//this is a lone new paragraph, we add it to the list
+		breakedLineNodes.push( currentLineNode )
+		return { breakedLineNodes, currentParent: currentLineNode }
+		
+	}, { breakedLineNodes: [ ] } )
+	
+	///MARKDOWN logic
+	// Realign children nodes to orderedList and bulletList
+	const { accumulatedNodes } = breakedLineNodes.reduce( ( { accumulatedNodes, indexCurrentList }, currentLineNode ) => {
 		
 		if( currentLineNode.adfType !== 'heading'
 			&& currentLineNode.adfType !== 'orderedList'
@@ -45182,42 +45277,11 @@ function buildTreeFromMarkdown( rawTextMarkdown ){
 			currentLineNode.textPosition = accumulatedNodes[ indexCurrentList ].textPosition + 2
 		}
 		
-		if( ( currentLineNode.adfType === 'codeBlock'
-			  || ( currentLineNode.nodeAttached && currentLineNode.nodeAttached.adfType === 'codeBlock' ) )
-			&& typeof indexCurrentCodeBlock === 'undefined' ){
-			
-			accumulatedNodes.push( currentLineNode )
-			accumulatedNodes[ accumulatedNodes.length - 1 ].textToEmphasis = ''
-			
-			if( currentLineNode.nodeAttached
-				&& currentLineNode.nodeAttached.adfType === 'codeBlock' ){
-				currentLineNode.nodeAttached.textToEmphasis = ''
-				accumulatedNodes.push( currentLineNode.nodeAttached )
-			}
-			
-			return { accumulatedNodes, indexCurrentCodeBlock: accumulatedNodes.length - 1, indexCurrentList }
-		}
-		
-		if( currentLineNode.adfType === 'codeBlock'
-			&& typeof indexCurrentCodeBlock !== 'undefined' ){
-			accumulatedNodes[ indexCurrentCodeBlock ].textPosition = currentLineNode.textPosition
-			return { accumulatedNodes, indexCurrentList }
-		}
-		
-		if( currentLineNode.adfType === 'paragraph'
-			&& typeof indexCurrentCodeBlock !== 'undefined'
-			&& typeof accumulatedNodes[ indexCurrentCodeBlock ].textToEmphasis !== 'undefined' ){
-			
-			if( accumulatedNodes[ indexCurrentCodeBlock ].textToEmphasis !== '' )
-				accumulatedNodes[ indexCurrentCodeBlock ].textToEmphasis += '\n'
-			
-			accumulatedNodes[ indexCurrentCodeBlock ].textToEmphasis += currentLineNode.textToEmphasis
-			accumulatedNodes[ indexCurrentCodeBlock ].textPosition = currentLineNode.textPosition
-			
-			return { accumulatedNodes, indexCurrentCodeBlock, indexCurrentList }
-		}
-		
 		accumulatedNodes.push( currentLineNode )
+		
+		if( currentLineNode.adfType === 'heading' )
+			return { accumulatedNodes }
+		
 		if( currentLineNode.adfType === 'bulletList' || currentLineNode.adfType === 'orderedList' ){
 			return { accumulatedNodes, indexCurrentList: accumulatedNodes.length - 1 }
 		}
@@ -45226,22 +45290,26 @@ function buildTreeFromMarkdown( rawTextMarkdown ){
 		
 	}, { accumulatedNodes: [ ] } )
 	
-	const levelsPosition = accumulatedNodes.reduce( ( currentLevelList, currentList ) => {
-		return currentLevelList.includes( currentList.textPosition ) || currentLevelList.includes( currentList.textPosition + 1 )
+	///MARKDOWN logic
+	// List all different levels to consider
+	const levelsPosition = accumulatedNodes.reduce( ( currentLevelList, currentNode ) => {
+		if( currentNode.adfType !== 'orderedList'
+			&& currentNode.adfType !== 'bulletList' )
+			return currentLevelList
+		
+		return ( currentLevelList.includes( currentNode.textPosition + 2 ) || currentLevelList.includes( currentNode.textPosition + 3 ) )
 			   ? currentLevelList
-			   : currentLevelList.length === 0 || currentList.textPosition > ( currentLevelList[ currentLevelList.length - 1 ] + 1 )
-				 ? [ ...currentLevelList, currentList.textPosition ]
+			   : currentNode.textPosition + 2 > ( currentLevelList[ currentLevelList.length - 1 ] + 1 )
+				 ? [ ...currentLevelList, currentNode.textPosition + 2 ]
 				 : currentLevelList
-		// currentList.textPosition
-		// 		   ? currentLevelList.splice( 	currentLevelList.findIndex( findIndexListValues => {
-		// 				return currentList.textPosition < findIndexListValues.textPosition
-		// 			} ), 0, currentList.textPosition )
-		// 		   : currentLevelList
 	}, [ 0 ] )
 	
-	const levelsListsIndexes = levelsPosition.map( currentLevelPosition => {
-		return accumulatedNodes.filter( currentList => ( currentList.textPosition === currentLevelPosition
-														 || currentList.textPosition === currentLevelPosition + 1 ) )
+	///MARKDOWN logic
+	// Map all nodes to a specific level
+	const levelsListsIndexes = levelsPosition.map( ( currentLevelPosition, currentIndex ) => {
+		return accumulatedNodes.filter( currentList => ( currentList.textPosition >= currentLevelPosition
+														   && ( currentIndex === levelsPosition.length - 1 //this is the last level
+																|| currentList.textPosition < levelsPosition[ currentIndex + 1 ] ) ) )
 							   .map( currentList => ( {
 								   indexOfList: accumulatedNodes.indexOf( currentList ),
 								   children: [],
@@ -45263,6 +45331,9 @@ function buildTreeFromMarkdown( rawTextMarkdown ){
 									 : lastParentWithIndexBelow === 0
 									   ? 0
 									   : lastParentWithIndexBelow - 1
+			if( parentIndexToUse < 0 )
+				throw 'Parent list of node is empty!'
+	
 			parentList[ parentIndexToUse ].children.push( currentListValues )
 			
 			return currentTreeValues
@@ -45326,6 +45397,9 @@ function matchList( lineToMatch ){
 		// adfDescription.bulletList( )
 		// 			  .textItem(  )
 		const textIsCodeBlock = matchCodeBlock( list.groups.listText )
+		if( textIsCodeBlock )
+			textIsCodeBlock.textPosition = lineToMatch.indexOf( list.groups.listText )
+		
 		return { 	adfType	: 		list.groups.orderedNumber
 										? "orderedList"
 										: "bulletList",
@@ -45346,7 +45420,8 @@ function matchCodeBlock( lineToMatch ){
 		
 		return { 	adfType: 		"codeBlock",
 			typeParam:		codeBlock.groups.Language,
-			textPosition: 	lineToMatch.indexOf( '```' ) }
+			textPosition: 	lineToMatch.indexOf( '```' ),
+			textToEmphasis: '' }
 	}
 	
 	return null
@@ -45367,13 +45442,13 @@ function matchBlockQuote( lineToMatch ){
 }
 
 function matchParagraph( lineToMatch ){
-	const paragraph = lineToMatch.match( /^(?:[\s])*(?<paragraphText>[^\n]+)$/i )
+	const paragraph = lineToMatch.match( /^(?:[\s]*)(?<paragraphText>[^\n]+)$/ )
 	if( paragraph
 		&& paragraph.groups
 		&& paragraph.groups.paragraphText ){
 		return { 	adfType : 		"paragraph",
 			textToEmphasis: paragraph.groups.paragraphText,
-			textPosition: 	!paragraph.groups.paragraphText.match( /^(?:[\s])*$/ )
+			textPosition: 	!paragraph.groups.paragraphText.match( /^(?:[\s]*)$/ )
 							 ? lineToMatch.indexOf( paragraph.groups.paragraphText )
 							 : lineToMatch.length }
 	}
@@ -45401,7 +45476,7 @@ function fillADFNodesWithMarkdown( currentParentNode, currentArrayOfNodesOfSameI
 		
 		if( currentNode.node.adfType !== 'codeBlock'
 			&& currentNode.node.textToEmphasis )
-			attachTextToNodeWithEmphasis( nodeToAttachTextTo, currentNode.node.textToEmphasis )
+			attachItemNode( nodeToAttachTextTo, currentNode.node.textToEmphasis )
 		
 		else if( currentNode.node.adfType === 'codeBlock' )
 			attachTextToNodeRaw( nodeToAttachTextTo, currentNode.node.textToEmphasis )
@@ -45445,7 +45520,110 @@ function addTypeToNode( adfNodeToAttachTo, adfType, typeParams ){
 }
 
 
-function attachTextToNodeWithEmphasis( parentNode, textToEmphasis ){
+function attachItemNode( nodeToAttachTo, rawText ) {
+	const slicedInline = sliceInLineCode( rawText )
+	
+	const { slicedInlineAndEmoji } = slicedInline.reduce( ( { slicedInlineAndEmoji }, currentSlice ) => {
+		if( !currentSlice.isMatching ){
+			const slicedEmoji = sliceEmoji( currentSlice.text )
+			
+			return { slicedInlineAndEmoji: slicedInlineAndEmoji.concat( slicedEmoji ) }
+		}
+		
+		slicedInlineAndEmoji.push( currentSlice )
+		return { slicedInlineAndEmoji }
+	}, { slicedInlineAndEmoji: [] } )
+	
+	const { slicedInlineAndEmojiAndLink } = slicedInlineAndEmoji.reduce( ( { slicedInlineAndEmojiAndLink }, currentSlice ) => {
+		if( !currentSlice.isMatching ){
+			const slicedLink = sliceLink( currentSlice.text )
+			
+			return { slicedInlineAndEmojiAndLink: slicedInlineAndEmojiAndLink.concat( slicedLink ) }
+		}
+		
+		slicedInlineAndEmojiAndLink.push( currentSlice )
+		return { slicedInlineAndEmojiAndLink }
+	}, { slicedInlineAndEmojiAndLink: [] } )
+	
+	for( const currentSlice of slicedInlineAndEmojiAndLink ) {
+		switch( currentSlice.type ){
+			case 'inline':
+				const inlineCodeNode = new Text( currentSlice.text, marks().code() )
+				nodeToAttachTo.content.add( inlineCodeNode )
+				break
+			
+			case 'emoji':
+				const emojiNode = new Emoji( {shortName: currentSlice.text } )
+				nodeToAttachTo.content.add( emojiNode )
+				break
+			
+			case 'link':
+				const linkNode = new Text( currentSlice.text,
+										   marks().link( currentSlice.optionalText1,
+														 currentSlice.optionalText2 ) )
+				nodeToAttachTo.content.add( linkNode )
+				break
+			
+			case 'image':
+				const imageNode = new Text( currentSlice.text,
+											marks().link( currentSlice.optionalText1,
+														  currentSlice.optionalText2 ) )
+				nodeToAttachTo.content.add( imageNode )
+				break
+			
+			default:
+				attachTextToNodeSliceEmphasis( nodeToAttachTo, currentSlice.text )
+				// const textNode = new Text( currentSlice.text, marksToUse )
+				// nodeToAttachTo.content.add( textNode )
+		}
+	}
+}
+
+function sliceInLineCode( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'inline', /(?<nonMatchBefore>[^`]*)(?:`(?<match>[^`]+)`)(?<nonMatchAfter>[^`]*)/g )
+}
+
+function sliceEmoji( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'emoji',/(?<nonMatchBefore>[^`]*)(?::(?<match>[^`\s]+):)(?<nonMatchAfter>[^`]*)/g )
+}
+
+function sliceLink( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'link',/(?<nonMatchBefore>[^`]*)(?:\[(?<match>[^\[\]]+)\]\((?<matchOptional>[^\(\)"]+)(?: "(?<matchOptional2>[^"]*)")?\))(?<nonMatchAfter>[^`]*)/g )
+}
+
+function sliceOneMatchFromRegexp( rawText, typeTag, regexpToSliceWith ){
+	let slicesResult = [ ]
+	let snippet = null
+	let hasAtLeastOneExpression = false
+	
+	while( ( snippet = regexpToSliceWith.exec( rawText ) ) ) {
+		hasAtLeastOneExpression = true
+		if( snippet.groups.nonMatchBefore ){
+			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchBefore } )
+		}
+		
+		if( snippet.groups.match ){
+			slicesResult.push( {
+								   isMatching: 		true,
+								   type: 			typeTag,
+								   text: 			snippet.groups.match,
+								   optionalText1: 	snippet.groups.matchOptional,
+								   optionalText2: 	snippet.groups.matchOptional2
+							   } )
+		}
+		
+		if( snippet.groups.nonMatchAfter ){
+			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchAfter } )
+		}
+	}
+	
+	if( !hasAtLeastOneExpression )
+		slicesResult.push( { isMatching: false, text: rawText } )
+	
+	return slicesResult
+}
+
+function attachTextToNodeSliceEmphasis( parentNode, textToEmphasis ){
 	const lineUnderscored = textToEmphasis.replace( /\*/g, '_' )
 	let currentDecorationLevel = 0
 	//see convertDecorationLevelToMark
@@ -45473,7 +45651,9 @@ function attachTextToNodeWithEmphasis( parentNode, textToEmphasis ){
 			let decorationToUse = convertDecorationLevelToMark( currentDecorationLevel )
 			
 			if( expressionBuffer !== '' ){
-				textWithInline( parentNode, expressionBuffer, decorationToUse )
+				const textNode = new Text( expressionBuffer, decorationToUse )
+				parentNode.content.add( textNode )
+				// textWithInline( parentNode, expressionBuffer, decorationToUse )
 			}
 			else {
 				if( potentialUnderscorePair )
@@ -45486,8 +45666,12 @@ function attachTextToNodeWithEmphasis( parentNode, textToEmphasis ){
 			expressionBuffer = ''
 		}
 	}
-	if( expressionBuffer !== '' )
-		textWithInline( parentNode, expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel ) )
+	
+	if( expressionBuffer !== '' ){
+		const textNode = new Text( expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel ) )
+		parentNode.content.add( textNode )
+	}
+	// textWithInline( parentNode, expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel ) )
 }
 
 function convertDecorationLevelToMark( decorationLevelToConvert ){
@@ -45500,69 +45684,6 @@ function convertDecorationLevelToMark( decorationLevelToConvert ){
 			   : null
 }
 
-function textWithInline( nodeToAttachTo, rawText, marksToUse ){
-	const strInlineRegExp = '(?<textBefore>[^`]*)' +
-							'(?:' +
-							'`(?<inlineCode>[^`]+)`' +
-							'|' + '!\\[(?<imageTitle>[^\\[\\]]+)\\]\\((?<imageURL>[^\\(\\)"]+)(?: "(?<imageHover>[^"]*)")?\\)' +
-							'|' + '\\[(?<linkTitle>[^\\[\\]]+)\\]\\((?<linkURL>[^\\(\\)"]+)(?: "(?<linkHover>[^"]*)")?\\)' +
-							'|' + ':(?<emojiCode>[^`]+):' +
-							')' +
-							'(?<textAfter>[^`]*)'
-	const inlineRegExp = new RegExp( strInlineRegExp, 'g' )
-	
-	let snippet = null
-	let hasAtLeastOneExpression = false
-	while( ( snippet = inlineRegExp.exec( rawText ) ) ) {
-		hasAtLeastOneExpression = true
-		if( snippet.groups.textBefore ){
-			const textNode = new Text( snippet.groups.textBefore, marksToUse )
-			nodeToAttachTo.content.add( textNode )
-		}
-		
-		if( snippet.groups.inlineCode ){
-			const textNode = new Text( snippet.groups.inlineCode, marks().code() )
-			nodeToAttachTo.content.add( textNode )
-		}
-		
-		if( snippet.groups.emojiCode ){
-			const emojiNode = new Emoji( {shortName: snippet.groups.emojiCode} )
-			nodeToAttachTo.content.add( emojiNode )
-		}
-		
-		if( snippet.groups.imageTitle
-			|| snippet.groups.imageURL
-			|| snippet.groups.imageHover ){
-			// const textNode = new Text( snippet.groups.inlineCode, marks().code() )
-			// nodeToAttachTo.content.add( textNode )
-		}
-		
-		if( snippet.groups.linkTitle
-			|| snippet.groups.linkURL
-			|| snippet.groups.linkHover ){
-			const textNode = new Text( snippet.groups.linkTitle,
-									   marks().link( snippet.groups.linkURL,
-													 snippet.groups.linkHover ) )
-			nodeToAttachTo.content.add( textNode )
-		}
-		
-		// if( snippet.groups.imageTitle ){
-		// 	const textNode = new Text( link.groups.inlineCode, marks().code() )
-		// 	nodeToAttachTo.content.add( textNode )
-		// }
-		
-		if( snippet.groups.textAfter ){
-			const textNode = new Text( snippet.groups.textAfter, marksToUse )
-			nodeToAttachTo.content.add( textNode )
-		}
-	}
-	
-	if( !hasAtLeastOneExpression ){
-		const textNode = new Text( rawText, marksToUse )
-		nodeToAttachTo.content.add( textNode )
-	}
-	
-}
 
 function attachTextToNodeRaw( nodeToAttachTo, textToAttach ){
 	const textNode = new Text( textToAttach )
@@ -45575,16 +45696,16 @@ module.exports = translateGITHUBMarkdownToADF
 /***/ }),
 
 /***/ 135:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_16858__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_20539__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_16858__(526);
-const hard_break_1 = __nested_webpack_require_16858__(570);
-const index_1 = __nested_webpack_require_16858__(492);
-const mention_1 = __nested_webpack_require_16858__(962);
-const text_1 = __nested_webpack_require_16858__(171);
+const emoji_1 = __nested_webpack_require_20539__(526);
+const hard_break_1 = __nested_webpack_require_20539__(570);
+const index_1 = __nested_webpack_require_20539__(492);
+const mention_1 = __nested_webpack_require_20539__(962);
+const text_1 = __nested_webpack_require_20539__(171);
 class Decision {
     constructor(localId, state) {
         this.localId = localId;
@@ -45635,16 +45756,16 @@ exports.Decision = Decision;
 /***/ }),
 
 /***/ 147:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_18468__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_22149__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_18468__(526);
-const hard_break_1 = __nested_webpack_require_18468__(570);
-const index_1 = __nested_webpack_require_18468__(492);
-const mention_1 = __nested_webpack_require_18468__(962);
-const text_1 = __nested_webpack_require_18468__(171);
+const emoji_1 = __nested_webpack_require_22149__(526);
+const hard_break_1 = __nested_webpack_require_22149__(570);
+const index_1 = __nested_webpack_require_22149__(492);
+const mention_1 = __nested_webpack_require_22149__(962);
+const text_1 = __nested_webpack_require_22149__(171);
 class Paragraph extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -45688,13 +45809,13 @@ exports.Paragraph = Paragraph;
 /***/ }),
 
 /***/ 171:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_19872__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_23553__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_19872__(812);
-const index_2 = __nested_webpack_require_19872__(492);
+const index_1 = __nested_webpack_require_23553__(812);
+const index_2 = __nested_webpack_require_23553__(492);
 function plain(text) {
     return new Text(text);
 }
@@ -45745,12 +45866,12 @@ exports.Text = Text;
 /***/ }),
 
 /***/ 192:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_21263__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_24944__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_21263__(711);
+const mark_1 = __nested_webpack_require_24944__(711);
 class Strong extends mark_1.Mark {
     constructor() {
         super('strong');
@@ -45762,13 +45883,13 @@ exports.Strong = Strong;
 /***/ }),
 
 /***/ 198:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_21618__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_25299__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const decision_1 = __nested_webpack_require_21618__(135);
-const index_1 = __nested_webpack_require_21618__(492);
+const decision_1 = __nested_webpack_require_25299__(135);
+const index_1 = __nested_webpack_require_25299__(492);
 class DecisionList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -45790,12 +45911,12 @@ exports.DecisionList = DecisionList;
 /***/ }),
 
 /***/ 206:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_22403__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_26084__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_22403__(711);
+const mark_1 = __nested_webpack_require_26084__(711);
 class Link extends mark_1.Mark {
     constructor(href, title) {
         super('link');
@@ -45821,12 +45942,12 @@ exports.Link = Link;
 /***/ }),
 
 /***/ 223:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_23076__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_26757__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_23076__(492);
+const index_1 = __nested_webpack_require_26757__(492);
 class Rule extends index_1.TopLevelNode {
     toJSON() {
         return {
@@ -45840,16 +45961,16 @@ exports.Rule = Rule;
 /***/ }),
 
 /***/ 270:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_23456__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_27137__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_23456__(849);
-const heading_1 = __nested_webpack_require_23456__(366);
-const index_1 = __nested_webpack_require_23456__(492);
-const ordered_list_1 = __nested_webpack_require_23456__(982);
-const paragraph_1 = __nested_webpack_require_23456__(147);
+const bullet_list_1 = __nested_webpack_require_27137__(849);
+const heading_1 = __nested_webpack_require_27137__(366);
+const index_1 = __nested_webpack_require_27137__(492);
+const ordered_list_1 = __nested_webpack_require_27137__(982);
+const paragraph_1 = __nested_webpack_require_27137__(147);
 class Panel extends index_1.TopLevelNode {
     constructor(panelType) {
         super();
@@ -45880,16 +46001,16 @@ exports.Panel = Panel;
 /***/ }),
 
 /***/ 284:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_24605__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_28286__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_24605__(526);
-const hard_break_1 = __nested_webpack_require_24605__(570);
-const index_1 = __nested_webpack_require_24605__(492);
-const mention_1 = __nested_webpack_require_24605__(962);
-const text_1 = __nested_webpack_require_24605__(171);
+const emoji_1 = __nested_webpack_require_28286__(526);
+const hard_break_1 = __nested_webpack_require_28286__(570);
+const index_1 = __nested_webpack_require_28286__(492);
+const mention_1 = __nested_webpack_require_28286__(962);
+const text_1 = __nested_webpack_require_28286__(171);
 class Task {
     constructor(localId, state) {
         this.localId = localId;
@@ -45945,7 +46066,7 @@ var TaskState;
 /***/ }),
 
 /***/ 286:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_26361__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_30042__) {
 
 "use strict";
 
@@ -45953,42 +46074,42 @@ function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
-var document_1 = __nested_webpack_require_26361__(802);
+var document_1 = __nested_webpack_require_30042__(802);
 exports.Document = document_1.Document;
-var tag_1 = __nested_webpack_require_26361__(322);
+var tag_1 = __nested_webpack_require_30042__(322);
 exports.document = tag_1.document;
-__export(__nested_webpack_require_26361__(451));
-__export(__nested_webpack_require_26361__(893));
-__export(__nested_webpack_require_26361__(849));
-__export(__nested_webpack_require_26361__(561));
-__export(__nested_webpack_require_26361__(198));
-__export(__nested_webpack_require_26361__(135));
-__export(__nested_webpack_require_26361__(526));
-__export(__nested_webpack_require_26361__(570));
-__export(__nested_webpack_require_26361__(366));
-__export(__nested_webpack_require_26361__(566));
-__export(__nested_webpack_require_26361__(823));
-__export(__nested_webpack_require_26361__(371));
-__export(__nested_webpack_require_26361__(962));
-__export(__nested_webpack_require_26361__(982));
-__export(__nested_webpack_require_26361__(270));
-__export(__nested_webpack_require_26361__(147));
-__export(__nested_webpack_require_26361__(223));
-__export(__nested_webpack_require_26361__(976));
-__export(__nested_webpack_require_26361__(284));
-__export(__nested_webpack_require_26361__(171));
-__export(__nested_webpack_require_26361__(812));
+__export(__nested_webpack_require_30042__(451));
+__export(__nested_webpack_require_30042__(893));
+__export(__nested_webpack_require_30042__(849));
+__export(__nested_webpack_require_30042__(561));
+__export(__nested_webpack_require_30042__(198));
+__export(__nested_webpack_require_30042__(135));
+__export(__nested_webpack_require_30042__(526));
+__export(__nested_webpack_require_30042__(570));
+__export(__nested_webpack_require_30042__(366));
+__export(__nested_webpack_require_30042__(566));
+__export(__nested_webpack_require_30042__(823));
+__export(__nested_webpack_require_30042__(371));
+__export(__nested_webpack_require_30042__(962));
+__export(__nested_webpack_require_30042__(982));
+__export(__nested_webpack_require_30042__(270));
+__export(__nested_webpack_require_30042__(147));
+__export(__nested_webpack_require_30042__(223));
+__export(__nested_webpack_require_30042__(976));
+__export(__nested_webpack_require_30042__(284));
+__export(__nested_webpack_require_30042__(171));
+__export(__nested_webpack_require_30042__(812));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
 /***/ 294:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_27570__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_31251__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_27570__(711);
+const mark_1 = __nested_webpack_require_31251__(711);
 class Underline extends mark_1.Mark {
     constructor() {
         super('underline');
@@ -46000,13 +46121,13 @@ exports.Underline = Underline;
 /***/ }),
 
 /***/ 322:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_27940__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_31621__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const document_1 = __nested_webpack_require_27940__(802);
-const index_1 = __nested_webpack_require_27940__(492);
+const document_1 = __nested_webpack_require_31621__(802);
+const index_1 = __nested_webpack_require_31621__(492);
 function document(strings, ...args) {
     const doc = new document_1.Document();
     const paragraph = doc.paragraph();
@@ -46038,13 +46159,13 @@ exports.document = document;
 /***/ }),
 
 /***/ 366:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_29042__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_32723__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_29042__(492);
-const text_1 = __nested_webpack_require_29042__(171);
+const index_1 = __nested_webpack_require_32723__(492);
+const text_1 = __nested_webpack_require_32723__(171);
 class Heading extends index_1.TopLevelNode {
     constructor(level) {
         super();
@@ -46104,12 +46225,12 @@ exports.Media = Media;
 /***/ }),
 
 /***/ 396:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_30652__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_34333__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_30652__(711);
+const mark_1 = __nested_webpack_require_34333__(711);
 class SubSup extends mark_1.Mark {
     constructor(variant) {
         super('subsup');
@@ -46130,12 +46251,12 @@ exports.SubSup = SubSup;
 /***/ }),
 
 /***/ 400:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_31194__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_34875__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_31194__(711);
+const mark_1 = __nested_webpack_require_34875__(711);
 class Em extends mark_1.Mark {
     constructor() {
         super('em');
@@ -46147,12 +46268,12 @@ exports.Em = Em;
 /***/ }),
 
 /***/ 451:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_31529__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_35210__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_31529__(492);
+const index_1 = __nested_webpack_require_35210__(492);
 class Action {
     title(title) {
         this.actionTitle = title;
@@ -46421,12 +46542,12 @@ exports.InlineNode = InlineNode;
 /***/ }),
 
 /***/ 526:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_38245__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_41926__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_38245__(492);
+const index_1 = __nested_webpack_require_41926__(492);
 function emoji(shortName, id, text) {
     return new Emoji({ shortName, id, text });
 }
@@ -46458,13 +46579,13 @@ exports.Emoji = Emoji;
 /***/ }),
 
 /***/ 561:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_39115__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_42796__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_39115__(492);
-const text_1 = __nested_webpack_require_39115__(171);
+const index_1 = __nested_webpack_require_42796__(492);
+const text_1 = __nested_webpack_require_42796__(171);
 class CodeBlock extends index_1.TopLevelNode {
     constructor(language) {
         super();
@@ -46491,15 +46612,15 @@ exports.CodeBlock = CodeBlock;
 /***/ }),
 
 /***/ 566:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_39941__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_43622__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_39941__(849);
-const index_1 = __nested_webpack_require_39941__(492);
-const ordered_list_1 = __nested_webpack_require_39941__(982);
-const paragraph_1 = __nested_webpack_require_39941__(147);
+const bullet_list_1 = __nested_webpack_require_43622__(849);
+const index_1 = __nested_webpack_require_43622__(492);
+const ordered_list_1 = __nested_webpack_require_43622__(982);
+const paragraph_1 = __nested_webpack_require_43622__(147);
 class ListItem {
     constructor() {
         this.content = new index_1.ContentNode('listItem');
@@ -46523,12 +46644,12 @@ exports.ListItem = ListItem;
 /***/ }),
 
 /***/ 570:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_40792__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_44473__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_40792__(492);
+const index_1 = __nested_webpack_require_44473__(492);
 function hardBreak() {
     return new HardBreak();
 }
@@ -46549,12 +46670,12 @@ exports.HardBreak = HardBreak;
 /***/ }),
 
 /***/ 601:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_41343__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_45024__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_41343__(711);
+const mark_1 = __nested_webpack_require_45024__(711);
 class Code extends mark_1.Mark {
     constructor() {
         super('code');
@@ -46566,12 +46687,12 @@ exports.Code = Code;
 /***/ }),
 
 /***/ 620:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_41688__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_45369__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_41688__(711);
+const mark_1 = __nested_webpack_require_45369__(711);
 class Action extends mark_1.Mark {
     constructor(title, target, actionParameters) {
         super('action');
@@ -46620,24 +46741,24 @@ exports.Mark = Mark;
 /***/ }),
 
 /***/ 802:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_42864__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_46545__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const nodes_1 = __nested_webpack_require_42864__(492);
-const application_card_1 = __nested_webpack_require_42864__(451);
-const block_quote_1 = __nested_webpack_require_42864__(893);
-const bullet_list_1 = __nested_webpack_require_42864__(849);
-const code_block_1 = __nested_webpack_require_42864__(561);
-const decision_list_1 = __nested_webpack_require_42864__(198);
-const heading_1 = __nested_webpack_require_42864__(366);
-const media_group_1 = __nested_webpack_require_42864__(823);
-const ordered_list_1 = __nested_webpack_require_42864__(982);
-const panel_1 = __nested_webpack_require_42864__(270);
-const paragraph_1 = __nested_webpack_require_42864__(147);
-const rule_1 = __nested_webpack_require_42864__(223);
-const task_list_1 = __nested_webpack_require_42864__(976);
+const nodes_1 = __nested_webpack_require_46545__(492);
+const application_card_1 = __nested_webpack_require_46545__(451);
+const block_quote_1 = __nested_webpack_require_46545__(893);
+const bullet_list_1 = __nested_webpack_require_46545__(849);
+const code_block_1 = __nested_webpack_require_46545__(561);
+const decision_list_1 = __nested_webpack_require_46545__(198);
+const heading_1 = __nested_webpack_require_46545__(366);
+const media_group_1 = __nested_webpack_require_46545__(823);
+const ordered_list_1 = __nested_webpack_require_46545__(982);
+const panel_1 = __nested_webpack_require_46545__(270);
+const paragraph_1 = __nested_webpack_require_46545__(147);
+const rule_1 = __nested_webpack_require_46545__(223);
+const task_list_1 = __nested_webpack_require_46545__(976);
 class Document {
     constructor(attrs = { version: 1 }) {
         this.attrs = attrs;
@@ -46696,20 +46817,20 @@ exports.Document = Document;
 /***/ }),
 
 /***/ 812:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_45276__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_48957__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const action_1 = __nested_webpack_require_45276__(620);
-const code_1 = __nested_webpack_require_45276__(601);
-const em_1 = __nested_webpack_require_45276__(400);
-const link_1 = __nested_webpack_require_45276__(206);
-const strike_1 = __nested_webpack_require_45276__(103);
-const strong_1 = __nested_webpack_require_45276__(192);
-const subsup_1 = __nested_webpack_require_45276__(396);
-const text_color_1 = __nested_webpack_require_45276__(936);
-const underline_1 = __nested_webpack_require_45276__(294);
+const action_1 = __nested_webpack_require_48957__(620);
+const code_1 = __nested_webpack_require_48957__(601);
+const em_1 = __nested_webpack_require_48957__(400);
+const link_1 = __nested_webpack_require_48957__(206);
+const strike_1 = __nested_webpack_require_48957__(103);
+const strong_1 = __nested_webpack_require_48957__(192);
+const subsup_1 = __nested_webpack_require_48957__(396);
+const text_color_1 = __nested_webpack_require_48957__(936);
+const underline_1 = __nested_webpack_require_48957__(294);
 function marks() {
     return new Marks();
 }
@@ -46769,13 +46890,13 @@ exports.Marks = Marks;
 /***/ }),
 
 /***/ 823:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_47241__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_50922__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_47241__(492);
-const media_1 = __nested_webpack_require_47241__(371);
+const index_1 = __nested_webpack_require_50922__(492);
+const media_1 = __nested_webpack_require_50922__(371);
 class MediaGroup extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -46803,13 +46924,13 @@ exports.MediaGroup = MediaGroup;
 /***/ }),
 
 /***/ 849:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_48154__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_51835__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_48154__(492);
-const list_item_1 = __nested_webpack_require_48154__(566);
+const index_1 = __nested_webpack_require_51835__(492);
+const list_item_1 = __nested_webpack_require_51835__(566);
 class BulletList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -46836,13 +46957,13 @@ exports.BulletList = BulletList;
 /***/ }),
 
 /***/ 893:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_49011__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_52692__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_49011__(492);
-const paragraph_1 = __nested_webpack_require_49011__(147);
+const index_1 = __nested_webpack_require_52692__(492);
+const paragraph_1 = __nested_webpack_require_52692__(147);
 class BlockQuote extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -46861,12 +46982,12 @@ exports.BlockQuote = BlockQuote;
 /***/ }),
 
 /***/ 936:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_49650__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_53331__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_49650__(711);
+const mark_1 = __nested_webpack_require_53331__(711);
 const colorPattern = /^#[0-9a-f]{6}$/;
 class TextColor extends mark_1.Mark {
     constructor(color) {
@@ -46891,12 +47012,12 @@ exports.TextColor = TextColor;
 /***/ }),
 
 /***/ 962:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_50368__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_54049__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_50368__(492);
+const index_1 = __nested_webpack_require_54049__(492);
 function mention(id, text) {
     return new Mention(id, text);
 }
@@ -46923,13 +47044,13 @@ exports.Mention = Mention;
 /***/ }),
 
 /***/ 976:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_51049__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_54730__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const task_1 = __nested_webpack_require_51049__(284);
-const index_1 = __nested_webpack_require_51049__(492);
+const task_1 = __nested_webpack_require_54730__(284);
+const index_1 = __nested_webpack_require_54730__(492);
 class TaskList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -46951,13 +47072,13 @@ exports.TaskList = TaskList;
 /***/ }),
 
 /***/ 982:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_51798__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_55479__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_51798__(492);
-const list_item_1 = __nested_webpack_require_51798__(566);
+const index_1 = __nested_webpack_require_55479__(492);
+const list_item_1 = __nested_webpack_require_55479__(566);
 class OrderedList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
