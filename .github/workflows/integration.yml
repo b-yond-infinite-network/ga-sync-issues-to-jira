@@ -1,4 +1,4 @@
-name: "local"
+name: Continuous Integration
 on:
   pull_request:
   push:

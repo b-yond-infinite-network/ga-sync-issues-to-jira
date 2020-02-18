@@ -1,4 +1,4 @@
-name: issuetrigger
+name: Sync with JIRA
 
 on:
   issues:
