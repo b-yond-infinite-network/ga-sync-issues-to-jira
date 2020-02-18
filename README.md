@@ -1,10 +1,11 @@
 #### A github Action to synchronize Github Issues and Jira subtasks
 
+[![Continuous Integration](https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/Continuous%20Integration/badge.svg)](https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3A%22Continuous+Integration%22)
+[![Codecov](https://codecov.io/gh/b-yond-infinite-network/ga-sync-issues-to-jira/branch/master/graph/badge.svg)](https://codecov.io/gh/b-yond-infinite-network/ga-sync-issues-to-jira)
+[![Last Issue](https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/Sync%20with%20JIRA/badge.svg)](https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3A%22Sync+with+JIRA%22)
 
-<p align="left">
-  <a href="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3Aintegration"><img alt="CI" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/integration/badge.svg"></a>
-  <a href="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/actions?query=workflow%3Aissuetrigger"><img alt="GitHub Actions status" src="https://github.com/b-yond-infinite-network/ga-sync-issues-to-jira/workflows/issuetrigger/badge.svg"></a>
-</p>
+[![npm downloads](https://img.shields.io/npm/dm/ga-sync-issues-to-jira)](https://www.npmjs.com/package/ga-sync-issues-to-jira)
+[![npm latest](https://img.shields.io/npm/v/ga-sync-issues-to-jira/latest.svg)](https://www.npmjs.com/package/ga-sync-issues-to-jira)
 
 # Using in your repo
 ## Usage
