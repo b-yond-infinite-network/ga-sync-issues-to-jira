@@ -22,6 +22,7 @@ Feature: Content and comment formatting
     And the ADF chunk at content path [ 0 ] contains '{"type": "text", "text": "try", "marks": [{"type": "strong"}]}'
     And the ADF chunk at content path [ 0 ] contains '{"type": "text", "text": " something like this:"}'
     And the ADF chunk at content path [ 1 ] has type 'codeBlock'
+    And the ADF chunk at content path [ 1 ] contains '{"type": "text", "text": "Scenario Outline: whatever Scenario\n  When some <variable> is also used with 'another_variable'\n   Then ....\n   ....\n   Example Outline:\n   |   variable   |\n   |   value1     |\n   |   value2     |"}'
 
 #  Scenario: Body formatting is respected - complex multiline
 #    Given The action is configured with project 'TEST', issue type 'Subtask' and label 'TEST-123'
