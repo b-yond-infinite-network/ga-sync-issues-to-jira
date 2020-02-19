@@ -55,13 +55,15 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 		//
 		// Prioritizing sub-XXX label as a force sync
 		const {
-			jiraIssueToUpdateDirectly,
-			leftOverLabelToUpdateFromParent
-		} = await listToUpdateDirectly( jiraSession, labeledJIRAIssueKeySubtasks, labeledJIRAIssuesKeyToAttachTo )
+				  jiraIssueToUpdateDirectly,
+				  leftOverLabelToUpdateFromParent,
+			  } = await listToUpdateDirectly( jiraSession, labeledJIRAIssueKeySubtasks, labeledJIRAIssuesKeyToAttachTo )
 		
-		const summaryToLookFor = ( issueChanges.changes && 'title' in issueChanges.changes
-								   ? issueChanges.changes.title.from
-								   : issueChanges.details.title )
+		const summaryToLookFor            = ( issueChanges.changes && issueChanges.changes.title
+											  ? issueChanges.changes.title.from
+											  : issueChanges.details.title
+												? issueChanges.details.title
+												: '#' + issueChanges.details.number )
 		const jiraIssueToUpdateFromParent = await listToUpdateByAttachingToParent( jiraSession,
 																				   jiraProjectKey,
 																				   jiraIssueTypeName,
@@ -184,17 +186,26 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 				return null
 			}
 			
-			if( !useSubtaskMode )
+			if( !useSubtaskMode ) {
 				return foundJIRAIssue
+			}
 			
-			const foundSubtask = findSubtaskByTitle( foundJIRAIssue, summaryToLookForInSubtasks )
-			if( foundSubtask )
-				return foundSubtask
+			if( summaryToLookForInSubtasks ) {
+				const foundSubtask = findSubtaskByTitle( foundJIRAIssue, summaryToLookForInSubtasks )
+				if( foundSubtask ) {
+					return foundSubtask
+				}
+			}
 			
-			const createdIssue = await createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeName, currentJIRAIssueKey, summaryToLookForInSubtasks )
+			const createdIssue = await createJIRAIssue( jiraSession,
+														jiraProjectKey,
+														jiraIssueTypeName,
+														currentJIRAIssueKey,
+														summaryToLookForInSubtasks )
 			DEBUG( `Created issue with return info ${ createdIssue }` )
-			if( !createdIssue )
+			if( !createdIssue ) {
 				throw `Unable to create the the Jira Issue`
+			}
 			
 			return findIssue( jiraSession, createdIssue.key )
 		} ) )
