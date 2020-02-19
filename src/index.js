@@ -1,18 +1,21 @@
 const core = require('@actions/core')
 const { syncJiraWithGH } = require( './sync' )
 
-process.on('unhandledRejection', handleError)
-main().catch(handleError)
+process.on( 'unhandledRejection', handleError )
+main().catch( handleError )
 
 async function main() {
 	
-	const syncPromise = await syncJiraWithGH()
-	console.log( 'have a great day!' )
+	try {
+		await syncJiraWithGH()
+		console.log( 'have a great day!' )
+	}
+	catch( error ) { handleError( error )}
 }
 
-function handleError(err) {
-	console.error(err)
-	core.setFailed(err.message)
+function handleError( err ) {
+	core.setFailed( err.message )
+	console.error( err )
 }
 
 

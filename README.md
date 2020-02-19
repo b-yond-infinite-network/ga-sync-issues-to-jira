@@ -14,7 +14,7 @@ As for any Github action, you create an `.github/workflows` folder and a yaml fi
 Here is a basic startup
 ```yaml
 #issuetrigger.yaml example
-name: issuetrigger
+name: Push to JIRA
 
 on:
   issues:

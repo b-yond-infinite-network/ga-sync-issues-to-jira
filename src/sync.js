@@ -8,8 +8,8 @@ async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
         const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
-                      ? ( messageToLog ) => ( console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>' )
-                      : (  ) => {}
+                      ? ( messageToLog ) => ( console.log( `<<<<DEBUG----------------\n${ JSON.stringify( messageToLog ) }\n----------------DEBUG>>>>` ) )
+                      : () => {}
     
     
         const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )

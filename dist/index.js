@@ -4365,8 +4365,8 @@ async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
         const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
-                      ? ( messageToLog ) => ( console.log( '<<DEBUG=' + JSON.stringify( messageToLog ) ) + '>>' )
-                      : (  ) => {}
+                      ? ( messageToLog ) => ( console.log( `<<<<DEBUG----------------\n${ JSON.stringify( messageToLog ) }\n----------------DEBUG>>>>` ) )
+                      : () => {}
     
     
         const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
@@ -33238,18 +33238,21 @@ module.exports = function btoa(str) {
 const core = __webpack_require__(470)
 const { syncJiraWithGH } = __webpack_require__( 111 )
 
-process.on('unhandledRejection', handleError)
-main().catch(handleError)
+process.on( 'unhandledRejection', handleError )
+main().catch( handleError )
 
 async function main() {
 	
-	const syncPromise = await syncJiraWithGH()
-	console.log( 'have a great day!' )
+	try {
+		await syncJiraWithGH()
+		console.log( 'have a great day!' )
+	}
+	catch( error ) { handleError( error )}
 }
 
-function handleError(err) {
-	console.error(err)
-	core.setFailed(err.message)
+function handleError( err ) {
+	core.setFailed( err.message )
+	console.error( err )
 }
 
 
