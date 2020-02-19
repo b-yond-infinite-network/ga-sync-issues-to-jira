@@ -7418,10 +7418,12 @@ async function jiraUpdateIssue( jiraSession, subtaskOrIssueToUpdate, updateToApp
 	// if( updateToApply.description ){
 	// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
 	// }
-		
+	const params = { issueKey: subtaskOrIssueToUpdate.key, issue: { fields: updateToApply } }
+	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ params } \n----------------\n` )
 	return await jiraSession.issue.editIssue( {
-												  issueKey: 	subtaskOrIssueToUpdate.key,
-												  issue:		{ fields: updateToApply } } )
+												  issueKey: subtaskOrIssueToUpdate.key,
+												  issue:    { fields: updateToApply },
+											  } )
 	
 }
 
@@ -7479,8 +7481,6 @@ function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueTo
 		&& subtaskOrIssueToChange.fields
 		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body ) {
 		changes.description = JSON.parse( JSON.stringify( translateToADF( issueChangeTriggered.details.body ) ) )
-		console.log( `>>>>>Translated GITHUB body \n----------------\n${ JSON.stringify( issueChangeTriggered.details.body ) } \n----------------\n     to     \n----------------\n ${ JSON.stringify(
-			changes.description ) }<<<<` )
 	}
 	
 	return changes
