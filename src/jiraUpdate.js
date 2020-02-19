@@ -101,7 +101,8 @@ function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueTo
 		&& subtaskOrIssueToChange.fields
 		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body ) {
 		changes.description = translateToADF( issueChangeTriggered.details.body )
-		console.log( `>>>>>Translated GITHUB body \n----------------\n${ issueChangeTriggered.details.body } \n----------------\n     to     \n----------------\n ${ changes.description }<<<<` )
+		console.log( `>>>>>Translated GITHUB body \n----------------\n${ JSON.stringify( issueChangeTriggered.details.body ) } \n----------------\n     to     \n----------------\n ${ JSON.stringify(
+			changes.description ) }<<<<` )
 	}
 	
 	return changes
