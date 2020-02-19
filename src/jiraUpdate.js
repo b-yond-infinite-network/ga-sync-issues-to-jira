@@ -50,8 +50,10 @@ async function jiraUpdateIssue( jiraSession, subtaskOrIssueToUpdate, updateToApp
 	// if( updateToApply.description ){
 	// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
 	// }
-	const params = { issueKey: subtaskOrIssueToUpdate.key, issue: { fields: updateToApply } }
-	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ JSON.stringify( params ) } \n----------------\n` )
+	// const paramsToUpdate = Object.keys( updateToApply ).reduce( ( finalUpdateInstruction, currentValueToUpdateTo,
+	// currentFiedlToUpdate ) => { return finalUpdateInstruction[ currentFiedlToUpdate ] }, finalUpdateInstruction )
+	
+	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ JSON.stringify( updateToApply ) } \n----------------\n` )
 	return await jiraSession.issue.editIssue( {
 												  issueKey: subtaskOrIssueToUpdate.key,
 												  issue:    { fields: updateToApply },
@@ -112,7 +114,7 @@ function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueTo
 	if( issueChangeTriggered.details.body
 		&& subtaskOrIssueToChange.fields
 		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body ) {
-		changes.description = JSON.parse( JSON.stringify( translateToADF( issueChangeTriggered.details.body ) ) )
+		changes.description = translateToADF( issueChangeTriggered.details.body )
 	}
 	
 	return changes
