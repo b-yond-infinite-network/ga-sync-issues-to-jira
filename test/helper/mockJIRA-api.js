@@ -1,24 +1,28 @@
-const nock 			= require('nock')
+const nock = require( 'nock' )
 
-const filesystem  	= require( 'fs' )
-const path        	= require( 'path' )
-const callerSites   = require( "callsites" )
-const querystring	= require( 'querystring' )
-const merge 		= require( 'deepmerge' )
+const filesystem  = require( 'fs' )
+const path        = require( 'path' )
+const querystring = require( 'querystring' )
+const merge       = require( 'deepmerge' )
 
 
 function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, overrideForFiles ) {
-	const jiraBaseURL	= jiraBaseUrl
-	const basePrefix 	= '/rest/api/2/'
+	mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, 2, overrideForFiles )
+	mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, 3, overrideForFiles )
+}
+
+function mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, version,
+								   overrideForFiles ) {
+	const basePrefix   = '/rest/api/' + version.toString() + '/'
 	const mockDefaults = {
 		globalAuth:
 			( jiraUserEmail && jiraApiToken
 			  ? { user: jiraUserEmail, pass: jiraApiToken }
-			  : null )
+			  : null ),
 	}
 	// const callerSiteCaller = callerSites.default()[ 1 ].getFileName()
 	// const dirOfCaller    = path.dirname(callerSiteCaller || '' )
-	const absoluteDirPath = path.resolve( __dirname, 'rest-capture-jira/v2' )
+	const absoluteDirPath = path.resolve( __dirname, 'rest-capture-jira/v' + version.toString() )
 	
 	const mockScope = nock( jiraBaseUrl + basePrefix ).persist( true )
 													  .log( console.log )
@@ -26,9 +30,9 @@ function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jira
 	walkthroughDirectory( absoluteDirPath,
 						  false,
 						  ( nameFile, pathFile ) => {
-		if( overrideForFiles && overrideForFiles.hasOwnProperty( nameFile ) ){
-			const newMockData = merge( mockDefaults, overrideForFiles[ nameFile ] )
-			createMockEndpointFromFileName( mockScope, newMockData, 'jira', nameFile, pathFile )
+							  if( overrideForFiles && overrideForFiles.hasOwnProperty( nameFile ) ) {
+								  const newMockData = merge( mockDefaults, overrideForFiles[ nameFile ] )
+								  createMockEndpointFromFileName( mockScope, newMockData, 'jira', nameFile, pathFile )
 			return
 		}
 		

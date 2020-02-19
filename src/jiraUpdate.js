@@ -9,7 +9,7 @@ async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
 												basic_auth: {
 													email:     core.getInput( 'JIRA_USEREMAIL' ),
 													api_token: core.getInput( 'JIRA_APITOKEN' ),
-												},
+												}
 											} )
 		
 		const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
@@ -47,18 +47,24 @@ async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
 }
 
 async function jiraUpdateIssue( jiraSession, subtaskOrIssueToUpdate, updateToApply ) {
-	// if( updateToApply.description ){
-	// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
-	// }
-	// const paramsToUpdate = Object.keys( updateToApply ).reduce( ( finalUpdateInstruction, currentValueToUpdateTo,
-	// currentFiedlToUpdate ) => { return finalUpdateInstruction[ currentFiedlToUpdate ] }, finalUpdateInstruction )
 	
-	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ JSON.stringify( updateToApply ) } \n----------------\n` )
-	return await jiraSession.issue.editIssue( {
-												  issueKey: subtaskOrIssueToUpdate.key,
-												  issue:    { fields: updateToApply },
-											  } )
+	//we are forcing the v3 to allow for ADF description and not string
+	var options = {
+		uri:                jiraSession.buildURL( '/issue/' + subtaskOrIssueToUpdate.key, 3 ),
+		method:             'PUT',
+		json:               true,
+		followAllRedirects: true,
+		qs:                 null,
+		body:               { fields: updateToApply },
+	}
+	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ JSON.stringify( options ) } \n----------------\n` )
 	
+	return jiraSession.makeRequest( options, null, 'Issue Updated' )
+	
+	// return await jiraSession.issue.editIssue( {
+	// 											  issueKey: subtaskOrIssueToUpdate.key,
+	// 											  issue:    { fields: updateToApply },
+	// 										  } )
 }
 
 async function jiraFindTransitions( jiraSession, subtaskOrIssueToUpdate ) {

@@ -1,0 +1,26 @@
+{
+  "self": "https://fakejira/rest/api/2/user?accountId=123456:12345678-1234-1234-1234-12345678901",
+  "key": "testuser",
+  "accountId": "123456:12345678-1234-1234-1234-12345678901",
+  "name": "testuser",
+  "emailAddress": "testuser@test.domain",
+  "avatarUrls": {
+    "48x48": "https://anavatarurl",
+    "24x24": "https://anavatarurl",
+    "16x16": "https://anavatarurl",
+    "32x32": "https://anavatarurl"
+  },
+  "displayName": "Test User",
+  "active": true,
+  "timeZone": "America/Montreal",
+  "locale": "en",
+  "groups": {
+    "size": 8,
+    "items": []
+  },
+  "applicationRoles": {
+    "size": 1,
+    "items": []
+  },
+  "expand": "groups,applicationRoles"
+}

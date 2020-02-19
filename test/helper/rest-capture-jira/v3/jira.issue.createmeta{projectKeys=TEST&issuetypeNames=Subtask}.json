@@ -1,0 +1,33 @@
+{
+  "expand": "projects",
+  "projects": [
+    {
+      "self": "https://fakejira/rest/api/2/project/12345",
+      "id": "12345",
+      "key": "TEST",
+      "name": "TEST",
+      "avatarUrls": {
+        "48x48": "https://avatarurl",
+        "24x24": "https://avatarurl",
+        "16x16": "https://avatarurl",
+        "32x32": "https://avatarurl"
+      },
+      "issuetypes": [
+        {
+          "self": "https://fakejira/rest/api/2/issuetype/45678",
+          "id": "45678",
+          "description": "Subtasks track small pieces of work that are part of a larger task.",
+          "iconUrl": "https://iconissuetype",
+          "name": "Subtask",
+          "subtask": true,
+          "scope": {
+            "type": "PROJECT",
+            "project": {
+              "id": "12345"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "expand": "transitions",
+  "transitions": [
+    {
+      "id": "11",
+      "name": "To Do",
+      "to": {
+        "self": "https://fakejira/rest/api/3/status/11002",
+        "description": "",
+        "iconUrl": "https://fakejira/",
+        "name": "To Do",
+        "id": "11002",
+        "statusCategory": {
+          "self": "https://fakejira/rest/api/3/statuscategory/2",
+          "id": 2,
+          "key": "new",
+          "colorName": "blue-gray",
+          "name": "To Do"
+        }
+      },
+      "hasScreen": false,
+      "isGlobal": true,
+      "isInitial": false,
+      "isConditional": false
+    },
+    {
+      "id": "21",
+      "name": "In Progress",
+      "to": {
+        "self": "https://fakejira/rest/api/3/status/11003",
+        "description": "This issue is being actively worked on at the moment by the assignee.",
+        "iconUrl": "https://fakejira/",
+        "name": "In Progress",
+        "id": "11003",
+        "statusCategory": {
+          "self": "https://fakejira/rest/api/3/statuscategory/4",
+          "id": 4,
+          "key": "indeterminate",
+          "colorName": "yellow",
+          "name": "In Progress"
+        }
+      },
+      "hasScreen": false,
+      "isGlobal": true,
+      "isInitial": false,
+      "isConditional": false
+    },
+    {
+      "id": "31",
+      "name": "Done",
+      "to": {
+        "self": "https://fakejira/rest/api/3/status/11004",
+        "description": "",
+        "iconUrl": "https://fakejira/",
+        "name": "Done",
+        "id": "11004",
+        "statusCategory": {
+          "self": "https://fakejira/rest/api/3/statuscategory/3",
+          "id": 3,
+          "key": "done",
+          "colorName": "green",
+          "name": "Done"
+        }
+      },
+      "hasScreen": false,
+      "isGlobal": true,
+      "isInitial": false,
+      "isConditional": false
+    }
+  ]
+}
