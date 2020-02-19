@@ -41,7 +41,7 @@ async function jiraUpdateIssue( jiraSession, subtaskOrIssueToUpdate, updateToApp
 	// 	updateToApply.description = convertDescriptionGITHUBMarkdownToADF( updateToApply.description ).toJSON()
 	// }
 	const params = { issueKey: subtaskOrIssueToUpdate.key, issue: { fields: updateToApply } }
-	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ params } \n----------------\n` )
+	console.log( `>>>>>Sending JIRA UPDATE \n----------------\n${ JSON.stringify( params ) } \n----------------\n` )
 	return await jiraSession.issue.editIssue( {
 												  issueKey: subtaskOrIssueToUpdate.key,
 												  issue:    { fields: updateToApply },
