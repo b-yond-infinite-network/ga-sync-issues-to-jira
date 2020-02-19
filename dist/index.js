@@ -3270,12 +3270,14 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 			}
 			
 			if( summaryToLookForInSubtasks ) {
+				console.log( `-- Subtask mode using ${ summaryToLookForInSubtasks }` )
 				const foundSubtask = findSubtaskByTitle( foundJIRAIssue, summaryToLookForInSubtasks )
 				if( foundSubtask ) {
 					return foundSubtask
 				}
 			}
 			
+			console.log( `-- Creation in JIRA with title: ${ summaryToLookForInSubtasks }` )
 			const createdIssue = await createJIRAIssue( jiraSession,
 														jiraProjectKey,
 														jiraIssueTypeName,
