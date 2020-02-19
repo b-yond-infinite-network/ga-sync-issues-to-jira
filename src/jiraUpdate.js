@@ -3,36 +3,46 @@ const JiraClient     = require( 'jira-connector' )
 const translateToADF = require( 'md-to-adf' )
 
 async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
-	const jiraSession = new JiraClient({
-										   host: core.getInput('JIRA_BASEURL'),
-										   basic_auth: {
-											   email: core.getInput('JIRA_USEREMAIL'),
-											   api_token: core.getInput('JIRA_APITOKEN'),
-										   } } )
-	
-	const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
-	DEBUG( changeToPush )
-	if( Object.keys( changeToPush ).length <= 0 ) {
-		console.log( `-- all fields are synced between issue #${ issueEventTriggered.details[ 'number' ] } ` +
-					 `in GITHUB and issue ${ subtaskOrIssuetoChange.key } in JIRA` )
-	} else {
-		console.log( `Updating JIRA Issue: ${ JSON.stringify( subtaskOrIssuetoChange.key ) }` )
-		const updateResult = await jiraUpdateIssue( jiraSession, subtaskOrIssuetoChange, changeToPush )
-		if( updateResult ) {
-			console.log( `--- updated with: ${ JSON.stringify( changeToPush ) }` )
+	try {
+		const jiraSession = new JiraClient( {
+												host:       core.getInput( 'JIRA_BASEURL' ),
+												basic_auth: {
+													email:     core.getInput( 'JIRA_USEREMAIL' ),
+													api_token: core.getInput( 'JIRA_APITOKEN' ),
+												},
+											} )
+		
+		const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
+		DEBUG( changeToPush )
+		if( Object.keys( changeToPush ).length <= 0 ) {
+			console.log( `-- all fields are synced between issue #${ issueEventTriggered.details[ 'number' ] } ` +
+						 `in GITHUB and issue ${ subtaskOrIssuetoChange.key } in JIRA` )
+		}
+		else {
+			console.log( `Updating JIRA Issue: ${ JSON.stringify( subtaskOrIssuetoChange.key ) }` )
+			const updateResult = await jiraUpdateIssue( jiraSession, subtaskOrIssuetoChange, changeToPush )
+			if( updateResult ) {
+				console.log( `--- updated with: ${ JSON.stringify( changeToPush ) }` )
+			}
+		}
+		
+		const stateTransition = await jiraListStateToTransitionTo( jiraSession,
+																   subtaskOrIssuetoChange,
+																   issueEventTriggered )
+		if( stateTransition ) {
+			await jiraPushIssueToTransition( jiraSession, subtaskOrIssuetoChange, stateTransition )
+			console.log( `-- pushed ${ subtaskOrIssuetoChange.key } to transition` )
+		}
+		
+		if( issueEventTriggered.event === 'deleted' ) {
+			console.log( `Deleting JIRA Issue: ${ subtaskOrIssuetoChange.key }` )
+			await jiraDeleteIssue( jiraSession, subtaskOrIssuetoChange )
+			console.log( `-- deleted ${ subtaskOrIssuetoChange.key }` )
 		}
 	}
-	
-	const stateTransition = await jiraListStateToTransitionTo( jiraSession, subtaskOrIssuetoChange, issueEventTriggered )
-	if( stateTransition ){
-		await jiraPushIssueToTransition( jiraSession, subtaskOrIssuetoChange, stateTransition )
-		console.log( `-- pushed ${ subtaskOrIssuetoChange.key } to transition` )
-	}
-	
-	if( issueEventTriggered.event === 'deleted' ){
-		console.log( `Deleting JIRA Issue: ${ subtaskOrIssuetoChange.key }` )
-		await jiraDeleteIssue( jiraSession, subtaskOrIssuetoChange )
-		console.log( `-- deleted ${ subtaskOrIssuetoChange.key }` )
+	catch( errorUpdate ) {
+		DEBUG( `Error during update ${ errorUpdate }` )
+		throw errorUpdate
 	}
 }
 
