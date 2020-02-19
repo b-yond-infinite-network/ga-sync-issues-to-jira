@@ -217,14 +217,16 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 		// - the story with the same title
 		const jiraSubtasks = findAllSubtasks( jiraParentIssue )
 		if( !jiraSubtasks
-			|| jiraSubtasks.length === 0 )
+			|| jiraSubtasks.length === 0 ) {
 			return null
+		}
 		
 		const foundWithTitle = findSubtaskWithTitle( jiraSubtasks, titleToLookFor )
-		if( foundWithTitle )
+		if( foundWithTitle ) {
 			return foundWithTitle
+		}
 		
-		console.log( `----! no subtasks found with the title '${ summaryToLookForInSubtasks }' found, creating a new one` )
+		console.log( `----! no subtasks found with the title '${ titleToLookFor }' found, creating a new one` )
 		return null
 	}
 	
