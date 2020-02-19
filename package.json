@@ -31,7 +31,7 @@
     "adf-builder": "^3.3.0",
     "jira-connector": "^2.16.1",
     "lodash": "latest",
-    "md-to-adf": "^0.5.2",
+    "md-to-adf": "^0.5.4",
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {

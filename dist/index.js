@@ -58286,10 +58286,9 @@ function translateGITHUBMarkdownToADF( markdownText ){
 
 
 function buildTreeFromMarkdown( rawTextMarkdown ){
-	
 	///MARDKOWN logic - closing code blocks
 	//  When a code block is open, it should be closed by a triple caret, everything in between is code
-	const { codeBlockHandled } = rawTextMarkdown.split( '\n' ).reduce( ( { codeBlockHandled, indexCurrentCodeBloc }, currentLine, indexCurrentLine ) => {
+	const { codeBlockHandled } = rawTextMarkdown.split( /\r\n|\r|\n/ ).reduce( ( { codeBlockHandled, indexCurrentCodeBloc }, currentLine, indexCurrentLine ) => {
 		const lineTranslation = translateMarkdownLineToADF( currentLine )
 		
 		if( typeof indexCurrentCodeBloc === "undefined"
@@ -58808,16 +58807,16 @@ module.exports = translateGITHUBMarkdownToADF
 /***/ }),
 
 /***/ 135:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_20539__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_20545__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_20539__(526);
-const hard_break_1 = __nested_webpack_require_20539__(570);
-const index_1 = __nested_webpack_require_20539__(492);
-const mention_1 = __nested_webpack_require_20539__(962);
-const text_1 = __nested_webpack_require_20539__(171);
+const emoji_1 = __nested_webpack_require_20545__(526);
+const hard_break_1 = __nested_webpack_require_20545__(570);
+const index_1 = __nested_webpack_require_20545__(492);
+const mention_1 = __nested_webpack_require_20545__(962);
+const text_1 = __nested_webpack_require_20545__(171);
 class Decision {
     constructor(localId, state) {
         this.localId = localId;
@@ -58868,16 +58867,16 @@ exports.Decision = Decision;
 /***/ }),
 
 /***/ 147:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_22149__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_22155__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_22149__(526);
-const hard_break_1 = __nested_webpack_require_22149__(570);
-const index_1 = __nested_webpack_require_22149__(492);
-const mention_1 = __nested_webpack_require_22149__(962);
-const text_1 = __nested_webpack_require_22149__(171);
+const emoji_1 = __nested_webpack_require_22155__(526);
+const hard_break_1 = __nested_webpack_require_22155__(570);
+const index_1 = __nested_webpack_require_22155__(492);
+const mention_1 = __nested_webpack_require_22155__(962);
+const text_1 = __nested_webpack_require_22155__(171);
 class Paragraph extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -58921,13 +58920,13 @@ exports.Paragraph = Paragraph;
 /***/ }),
 
 /***/ 171:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_23553__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_23559__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_23553__(812);
-const index_2 = __nested_webpack_require_23553__(492);
+const index_1 = __nested_webpack_require_23559__(812);
+const index_2 = __nested_webpack_require_23559__(492);
 function plain(text) {
     return new Text(text);
 }
@@ -58978,12 +58977,12 @@ exports.Text = Text;
 /***/ }),
 
 /***/ 192:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_24944__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_24950__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_24944__(711);
+const mark_1 = __nested_webpack_require_24950__(711);
 class Strong extends mark_1.Mark {
     constructor() {
         super('strong');
@@ -58995,13 +58994,13 @@ exports.Strong = Strong;
 /***/ }),
 
 /***/ 198:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_25299__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_25305__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const decision_1 = __nested_webpack_require_25299__(135);
-const index_1 = __nested_webpack_require_25299__(492);
+const decision_1 = __nested_webpack_require_25305__(135);
+const index_1 = __nested_webpack_require_25305__(492);
 class DecisionList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -59023,12 +59022,12 @@ exports.DecisionList = DecisionList;
 /***/ }),
 
 /***/ 206:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_26084__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_26090__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_26084__(711);
+const mark_1 = __nested_webpack_require_26090__(711);
 class Link extends mark_1.Mark {
     constructor(href, title) {
         super('link');
@@ -59054,12 +59053,12 @@ exports.Link = Link;
 /***/ }),
 
 /***/ 223:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_26757__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_26763__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_26757__(492);
+const index_1 = __nested_webpack_require_26763__(492);
 class Rule extends index_1.TopLevelNode {
     toJSON() {
         return {
@@ -59073,16 +59072,16 @@ exports.Rule = Rule;
 /***/ }),
 
 /***/ 270:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_27137__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_27143__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_27137__(849);
-const heading_1 = __nested_webpack_require_27137__(366);
-const index_1 = __nested_webpack_require_27137__(492);
-const ordered_list_1 = __nested_webpack_require_27137__(982);
-const paragraph_1 = __nested_webpack_require_27137__(147);
+const bullet_list_1 = __nested_webpack_require_27143__(849);
+const heading_1 = __nested_webpack_require_27143__(366);
+const index_1 = __nested_webpack_require_27143__(492);
+const ordered_list_1 = __nested_webpack_require_27143__(982);
+const paragraph_1 = __nested_webpack_require_27143__(147);
 class Panel extends index_1.TopLevelNode {
     constructor(panelType) {
         super();
@@ -59113,16 +59112,16 @@ exports.Panel = Panel;
 /***/ }),
 
 /***/ 284:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_28286__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_28292__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_28286__(526);
-const hard_break_1 = __nested_webpack_require_28286__(570);
-const index_1 = __nested_webpack_require_28286__(492);
-const mention_1 = __nested_webpack_require_28286__(962);
-const text_1 = __nested_webpack_require_28286__(171);
+const emoji_1 = __nested_webpack_require_28292__(526);
+const hard_break_1 = __nested_webpack_require_28292__(570);
+const index_1 = __nested_webpack_require_28292__(492);
+const mention_1 = __nested_webpack_require_28292__(962);
+const text_1 = __nested_webpack_require_28292__(171);
 class Task {
     constructor(localId, state) {
         this.localId = localId;
@@ -59178,7 +59177,7 @@ var TaskState;
 /***/ }),
 
 /***/ 286:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_30042__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_30048__) {
 
 "use strict";
 
@@ -59186,42 +59185,42 @@ function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
-var document_1 = __nested_webpack_require_30042__(802);
+var document_1 = __nested_webpack_require_30048__(802);
 exports.Document = document_1.Document;
-var tag_1 = __nested_webpack_require_30042__(322);
+var tag_1 = __nested_webpack_require_30048__(322);
 exports.document = tag_1.document;
-__export(__nested_webpack_require_30042__(451));
-__export(__nested_webpack_require_30042__(893));
-__export(__nested_webpack_require_30042__(849));
-__export(__nested_webpack_require_30042__(561));
-__export(__nested_webpack_require_30042__(198));
-__export(__nested_webpack_require_30042__(135));
-__export(__nested_webpack_require_30042__(526));
-__export(__nested_webpack_require_30042__(570));
-__export(__nested_webpack_require_30042__(366));
-__export(__nested_webpack_require_30042__(566));
-__export(__nested_webpack_require_30042__(823));
-__export(__nested_webpack_require_30042__(371));
-__export(__nested_webpack_require_30042__(962));
-__export(__nested_webpack_require_30042__(982));
-__export(__nested_webpack_require_30042__(270));
-__export(__nested_webpack_require_30042__(147));
-__export(__nested_webpack_require_30042__(223));
-__export(__nested_webpack_require_30042__(976));
-__export(__nested_webpack_require_30042__(284));
-__export(__nested_webpack_require_30042__(171));
-__export(__nested_webpack_require_30042__(812));
+__export(__nested_webpack_require_30048__(451));
+__export(__nested_webpack_require_30048__(893));
+__export(__nested_webpack_require_30048__(849));
+__export(__nested_webpack_require_30048__(561));
+__export(__nested_webpack_require_30048__(198));
+__export(__nested_webpack_require_30048__(135));
+__export(__nested_webpack_require_30048__(526));
+__export(__nested_webpack_require_30048__(570));
+__export(__nested_webpack_require_30048__(366));
+__export(__nested_webpack_require_30048__(566));
+__export(__nested_webpack_require_30048__(823));
+__export(__nested_webpack_require_30048__(371));
+__export(__nested_webpack_require_30048__(962));
+__export(__nested_webpack_require_30048__(982));
+__export(__nested_webpack_require_30048__(270));
+__export(__nested_webpack_require_30048__(147));
+__export(__nested_webpack_require_30048__(223));
+__export(__nested_webpack_require_30048__(976));
+__export(__nested_webpack_require_30048__(284));
+__export(__nested_webpack_require_30048__(171));
+__export(__nested_webpack_require_30048__(812));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
 /***/ 294:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_31251__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_31257__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_31251__(711);
+const mark_1 = __nested_webpack_require_31257__(711);
 class Underline extends mark_1.Mark {
     constructor() {
         super('underline');
@@ -59233,13 +59232,13 @@ exports.Underline = Underline;
 /***/ }),
 
 /***/ 322:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_31621__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_31627__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const document_1 = __nested_webpack_require_31621__(802);
-const index_1 = __nested_webpack_require_31621__(492);
+const document_1 = __nested_webpack_require_31627__(802);
+const index_1 = __nested_webpack_require_31627__(492);
 function document(strings, ...args) {
     const doc = new document_1.Document();
     const paragraph = doc.paragraph();
@@ -59271,13 +59270,13 @@ exports.document = document;
 /***/ }),
 
 /***/ 366:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_32723__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_32729__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_32723__(492);
-const text_1 = __nested_webpack_require_32723__(171);
+const index_1 = __nested_webpack_require_32729__(492);
+const text_1 = __nested_webpack_require_32729__(171);
 class Heading extends index_1.TopLevelNode {
     constructor(level) {
         super();
@@ -59337,12 +59336,12 @@ exports.Media = Media;
 /***/ }),
 
 /***/ 396:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_34333__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_34339__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_34333__(711);
+const mark_1 = __nested_webpack_require_34339__(711);
 class SubSup extends mark_1.Mark {
     constructor(variant) {
         super('subsup');
@@ -59363,12 +59362,12 @@ exports.SubSup = SubSup;
 /***/ }),
 
 /***/ 400:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_34875__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_34881__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_34875__(711);
+const mark_1 = __nested_webpack_require_34881__(711);
 class Em extends mark_1.Mark {
     constructor() {
         super('em');
@@ -59380,12 +59379,12 @@ exports.Em = Em;
 /***/ }),
 
 /***/ 451:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_35210__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_35216__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_35210__(492);
+const index_1 = __nested_webpack_require_35216__(492);
 class Action {
     title(title) {
         this.actionTitle = title;
@@ -59654,12 +59653,12 @@ exports.InlineNode = InlineNode;
 /***/ }),
 
 /***/ 526:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_41926__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_41932__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_41926__(492);
+const index_1 = __nested_webpack_require_41932__(492);
 function emoji(shortName, id, text) {
     return new Emoji({ shortName, id, text });
 }
@@ -59691,13 +59690,13 @@ exports.Emoji = Emoji;
 /***/ }),
 
 /***/ 561:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_42796__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_42802__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_42796__(492);
-const text_1 = __nested_webpack_require_42796__(171);
+const index_1 = __nested_webpack_require_42802__(492);
+const text_1 = __nested_webpack_require_42802__(171);
 class CodeBlock extends index_1.TopLevelNode {
     constructor(language) {
         super();
@@ -59724,15 +59723,15 @@ exports.CodeBlock = CodeBlock;
 /***/ }),
 
 /***/ 566:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_43622__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_43628__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_43622__(849);
-const index_1 = __nested_webpack_require_43622__(492);
-const ordered_list_1 = __nested_webpack_require_43622__(982);
-const paragraph_1 = __nested_webpack_require_43622__(147);
+const bullet_list_1 = __nested_webpack_require_43628__(849);
+const index_1 = __nested_webpack_require_43628__(492);
+const ordered_list_1 = __nested_webpack_require_43628__(982);
+const paragraph_1 = __nested_webpack_require_43628__(147);
 class ListItem {
     constructor() {
         this.content = new index_1.ContentNode('listItem');
@@ -59756,12 +59755,12 @@ exports.ListItem = ListItem;
 /***/ }),
 
 /***/ 570:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_44473__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_44479__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_44473__(492);
+const index_1 = __nested_webpack_require_44479__(492);
 function hardBreak() {
     return new HardBreak();
 }
@@ -59782,12 +59781,12 @@ exports.HardBreak = HardBreak;
 /***/ }),
 
 /***/ 601:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_45024__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_45030__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_45024__(711);
+const mark_1 = __nested_webpack_require_45030__(711);
 class Code extends mark_1.Mark {
     constructor() {
         super('code');
@@ -59799,12 +59798,12 @@ exports.Code = Code;
 /***/ }),
 
 /***/ 620:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_45369__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_45375__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_45369__(711);
+const mark_1 = __nested_webpack_require_45375__(711);
 class Action extends mark_1.Mark {
     constructor(title, target, actionParameters) {
         super('action');
@@ -59853,24 +59852,24 @@ exports.Mark = Mark;
 /***/ }),
 
 /***/ 802:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_46545__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_46551__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const nodes_1 = __nested_webpack_require_46545__(492);
-const application_card_1 = __nested_webpack_require_46545__(451);
-const block_quote_1 = __nested_webpack_require_46545__(893);
-const bullet_list_1 = __nested_webpack_require_46545__(849);
-const code_block_1 = __nested_webpack_require_46545__(561);
-const decision_list_1 = __nested_webpack_require_46545__(198);
-const heading_1 = __nested_webpack_require_46545__(366);
-const media_group_1 = __nested_webpack_require_46545__(823);
-const ordered_list_1 = __nested_webpack_require_46545__(982);
-const panel_1 = __nested_webpack_require_46545__(270);
-const paragraph_1 = __nested_webpack_require_46545__(147);
-const rule_1 = __nested_webpack_require_46545__(223);
-const task_list_1 = __nested_webpack_require_46545__(976);
+const nodes_1 = __nested_webpack_require_46551__(492);
+const application_card_1 = __nested_webpack_require_46551__(451);
+const block_quote_1 = __nested_webpack_require_46551__(893);
+const bullet_list_1 = __nested_webpack_require_46551__(849);
+const code_block_1 = __nested_webpack_require_46551__(561);
+const decision_list_1 = __nested_webpack_require_46551__(198);
+const heading_1 = __nested_webpack_require_46551__(366);
+const media_group_1 = __nested_webpack_require_46551__(823);
+const ordered_list_1 = __nested_webpack_require_46551__(982);
+const panel_1 = __nested_webpack_require_46551__(270);
+const paragraph_1 = __nested_webpack_require_46551__(147);
+const rule_1 = __nested_webpack_require_46551__(223);
+const task_list_1 = __nested_webpack_require_46551__(976);
 class Document {
     constructor(attrs = { version: 1 }) {
         this.attrs = attrs;
@@ -59929,20 +59928,20 @@ exports.Document = Document;
 /***/ }),
 
 /***/ 812:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_48957__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_48963__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const action_1 = __nested_webpack_require_48957__(620);
-const code_1 = __nested_webpack_require_48957__(601);
-const em_1 = __nested_webpack_require_48957__(400);
-const link_1 = __nested_webpack_require_48957__(206);
-const strike_1 = __nested_webpack_require_48957__(103);
-const strong_1 = __nested_webpack_require_48957__(192);
-const subsup_1 = __nested_webpack_require_48957__(396);
-const text_color_1 = __nested_webpack_require_48957__(936);
-const underline_1 = __nested_webpack_require_48957__(294);
+const action_1 = __nested_webpack_require_48963__(620);
+const code_1 = __nested_webpack_require_48963__(601);
+const em_1 = __nested_webpack_require_48963__(400);
+const link_1 = __nested_webpack_require_48963__(206);
+const strike_1 = __nested_webpack_require_48963__(103);
+const strong_1 = __nested_webpack_require_48963__(192);
+const subsup_1 = __nested_webpack_require_48963__(396);
+const text_color_1 = __nested_webpack_require_48963__(936);
+const underline_1 = __nested_webpack_require_48963__(294);
 function marks() {
     return new Marks();
 }
@@ -60002,13 +60001,13 @@ exports.Marks = Marks;
 /***/ }),
 
 /***/ 823:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_50922__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_50928__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_50922__(492);
-const media_1 = __nested_webpack_require_50922__(371);
+const index_1 = __nested_webpack_require_50928__(492);
+const media_1 = __nested_webpack_require_50928__(371);
 class MediaGroup extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60036,13 +60035,13 @@ exports.MediaGroup = MediaGroup;
 /***/ }),
 
 /***/ 849:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_51835__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_51841__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_51835__(492);
-const list_item_1 = __nested_webpack_require_51835__(566);
+const index_1 = __nested_webpack_require_51841__(492);
+const list_item_1 = __nested_webpack_require_51841__(566);
 class BulletList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60069,13 +60068,13 @@ exports.BulletList = BulletList;
 /***/ }),
 
 /***/ 893:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_52692__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_52698__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_52692__(492);
-const paragraph_1 = __nested_webpack_require_52692__(147);
+const index_1 = __nested_webpack_require_52698__(492);
+const paragraph_1 = __nested_webpack_require_52698__(147);
 class BlockQuote extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60094,12 +60093,12 @@ exports.BlockQuote = BlockQuote;
 /***/ }),
 
 /***/ 936:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_53331__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_53337__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_53331__(711);
+const mark_1 = __nested_webpack_require_53337__(711);
 const colorPattern = /^#[0-9a-f]{6}$/;
 class TextColor extends mark_1.Mark {
     constructor(color) {
@@ -60124,12 +60123,12 @@ exports.TextColor = TextColor;
 /***/ }),
 
 /***/ 962:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_54049__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_54055__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_54049__(492);
+const index_1 = __nested_webpack_require_54055__(492);
 function mention(id, text) {
     return new Mention(id, text);
 }
@@ -60156,13 +60155,13 @@ exports.Mention = Mention;
 /***/ }),
 
 /***/ 976:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_54730__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_54736__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const task_1 = __nested_webpack_require_54730__(284);
-const index_1 = __nested_webpack_require_54730__(492);
+const task_1 = __nested_webpack_require_54736__(284);
+const index_1 = __nested_webpack_require_54736__(492);
 class TaskList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -60184,13 +60183,13 @@ exports.TaskList = TaskList;
 /***/ }),
 
 /***/ 982:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_55479__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_55485__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_55479__(492);
-const list_item_1 = __nested_webpack_require_55479__(566);
+const index_1 = __nested_webpack_require_55485__(492);
+const list_item_1 = __nested_webpack_require_55485__(566);
 class OrderedList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
