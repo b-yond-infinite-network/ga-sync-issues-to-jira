@@ -279,25 +279,6 @@ async function handleSubtask( issueChanges, useSubtaskMode, DEBUG ) {
 					"key": jiraParentIssueKey,
 				},
 				"summary": title,
-				
-				// "description": {
-				//     "type": "doc",
-				//     "version": 1,
-				//     "content": [
-				//         {
-				//             "type": "paragraph",
-				//             "content": [
-				//                 {
-				//                     "text": ,
-				//                     "type": "text"
-				//                 }
-				//             ]
-				//         }
-				//     ]
-				// },
-				// "labels": [
-				//     "GITHUB" + ghIssue.id
-				// ]
 			}
 		}
 		console.log( `Creating JIRA Issue of type : ${ JSON.stringify( jiraIssueTypeNameToUse ) } with title: ${ title }` )
