@@ -19,6 +19,4 @@ jobs:
           JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
           JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
           DEBUG_MODE:       true
-          ASSIGNEE_PUSH:
-            - test
-            - somethingelse
+          ASSIGNEE_PUSH:    test, somethingelse
