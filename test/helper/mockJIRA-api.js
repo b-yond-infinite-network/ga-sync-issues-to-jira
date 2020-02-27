@@ -6,13 +6,12 @@ const querystring = require( 'querystring' )
 const merge       = require( 'deepmerge' )
 
 
-function mockJIRACalls( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, overrideForFiles ) {
-	mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, 2, overrideForFiles )
-	mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, 3, overrideForFiles )
+function mockJIRACalls( jiraBaseUrl, jiraUserEmail, jiraApiToken, overrideForFiles ) {
+	mockJIRACallsWithVersion( jiraBaseUrl, jiraUserEmail, jiraApiToken, 2, overrideForFiles )
+	mockJIRACallsWithVersion( jiraBaseUrl, jiraUserEmail, jiraApiToken, 3, overrideForFiles )
 }
 
-function mockJIRACallsWithVersion( jiraBaseUrl, jiraKey, jiraIssueType, jiraUserEmail, jiraApiToken, version,
-								   overrideForFiles ) {
+function mockJIRACallsWithVersion( jiraBaseUrl, jiraUserEmail, jiraApiToken, version, overrideForFiles ) {
 	const basePrefix   = '/rest/api/' + version.toString() + '/'
 	const mockDefaults = {
 		globalAuth:

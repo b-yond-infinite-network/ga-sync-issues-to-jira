@@ -37,6 +37,10 @@ inputs:
     description: 'Should we attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
     required: true
     default: true
+  ASSIGNEE_PUSH:
+    description: 'Whether we want to extract and push the first assignee email as found in GITHUB into the assignee field in JIRA'
+    required: true
+    default: false
   DEBUG_MODE:
     description: 'Should log as many info as possible'
     required: true

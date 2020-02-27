@@ -68,7 +68,7 @@ And( /^I specify a wrong JIRA API URL$/, async ( projectName ) => {
 } )
 
 And( 'I push wrong JIRA credentials in my GA', () => {
-    mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken )
+    mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken )
     jiraUserEmail = 'wronguser@wrong.domain'
     jiraApiToken = 'wrongAPITOKEN'
 } )
@@ -77,7 +77,7 @@ And( /^the JIRA issue type is set to '(.*)'$/, ( issueType ) => {
 } )
 
 And( 'my JIRA credentials are correct', () => {
-    mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken )
+    mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken )
 } )
 
 And( /the issue in GITHUB has the same title, body and comments than issue '([^']*)' in JIRA$/,  ( labelForIssue ) => {

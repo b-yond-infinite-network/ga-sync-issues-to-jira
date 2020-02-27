@@ -93,13 +93,25 @@ And( /^we add a label '(.*)'$/, labelToAdd => {
 And( /^there's no assignee$/, () => {} )
 
 When( /^the action triggers$/,  async (  ) => {
-	mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken, overloadJIRAValues )
-	await mockGHActionsIssue( 'opened', actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	await mockGHActionsIssue( 'opened',
+							  actionProjectName,
+							  actionIssueType,
+							  jiraBaseURL,
+							  jiraUserEmail,
+							  jiraApiToken,
+							  overloadGITHUBValues )
 })
 
 When( /^a '(.*)' action triggers$/,  async ( actionStatus ) => {
-	mockJIRACalls( 'https://' + jiraBaseURL, actionProjectName, actionIssueType, jiraUserEmail, jiraApiToken, overloadJIRAValues )
-	await mockGHActionsIssue( actionStatus, actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadGITHUBValues )
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	await mockGHActionsIssue( actionStatus,
+							  actionProjectName,
+							  actionIssueType,
+							  jiraBaseURL,
+							  jiraUserEmail,
+							  jiraApiToken,
+							  overloadGITHUBValues )
 })
 
 Then(/^we upgrade JIRA, write '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {

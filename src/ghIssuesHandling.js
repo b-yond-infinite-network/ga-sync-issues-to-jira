@@ -11,16 +11,23 @@ async function handleIssues( useSubtaskMode, DEBUG ) {
             console.log( '==> action skipped -- no project key' )
             return null
         }
+    
+        DEBUG( 'Assignee is :' + JSON.stringify( core.getInput( 'ASSIGNEE_PUSH' ) ) )
+    
+    
         const changeEvent = github.context.payload
-        
-        if( !changeEvent.issue )
-            throw Error( 'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
-        
-        if( actionPossible.indexOf( changeEvent.action ) === -1 )
+    
+        if( !changeEvent.issue ) {
+            throw Error(
+                'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
+        }
+    
+        if( actionPossible.indexOf( changeEvent.action ) === -1 ) {
             core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
-        
+        }
+    
         DEBUG( changeEvent )
-        
+    
         if( actionToConsider.indexOf( changeEvent.action ) === -1 ) {
             console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
             return null

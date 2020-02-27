@@ -12,11 +12,11 @@ let overloadGITHUBValues                            = null
 let overloadJIRAValues                              = null
 
 
-const { mockJIRACalls, unmockJIRACalls } = require( '../helper/mockJIRA-api' )
-let jiraBaseURL                          = 'https://fakejira'
-let jiraUserEmail                        = 'testuser@test.domain'
-let jiraApiToken                         = 'testAPITOKEN'
-let logWithUpdateMessage                 = null
+const { mockJIRACalls }  = require( '../helper/mockJIRA-api' )
+let jiraBaseURL          = 'https://fakejira'
+let jiraUserEmail        = 'testuser@test.domain'
+let jiraApiToken         = 'testAPITOKEN'
+let logWithUpdateMessage = null
 
 const oldLog = console.log
 
@@ -112,8 +112,6 @@ And( /^the body is now set to '(.*)' in GITHUB$/, bodyContent => {
 
 When( /^the action triggers$/, async () => {
 	mockJIRACalls( 'https://' + jiraBaseURL,
-				   actionProjectName,
-				   actionIssueType,
 				   jiraUserEmail,
 				   jiraApiToken,
 				   overloadJIRAValues )

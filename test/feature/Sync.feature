@@ -138,9 +138,25 @@ Feature: Synchronization of fields and states
     Then we upgrade JIRA, write '<MessageToLookFor>' in the logs and exit successfully
 
     Examples:
-      | JIRAStatus  | JIRAToLabel        | MessageToLookFor                                                             |
-      | TODO        | subTEST-TODO       | Adding sub-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade     |
-      | INPROGRESS  | subTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                            |
-      | DONE        | subTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                                  |
+      | JIRAStatus | JIRAToLabel        | MessageToLookFor                                                         |
+      | TODO       | subTEST-TODO       | Adding sub-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade |
+      | INPROGRESS | subTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                        |
+      | DONE       | subTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                              |
 
 
+#  Scenario Outline: Multi-project action with status <JIRAStatus>
+#    Given The action is configured with project '[ "TEST", "TEST2" ]', issue type 'Subtask' and label 'TEST-123'
+#    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+#    And the title is now set to 'A new title' in GITHUB
+#    And the summary was set to 'An old title' in JIRA
+#    When a '<GithubActionStatus>' action triggers
+#    Then we upgrade JIRA, write '--- updated with: {' and '"summary":"A new title"' in the logs and exit successfully
+#
+#    Examples:
+#      | GithubActionStatus  |
+#      | opened              |
+#      | closed              |
+#      | deleted             |
+#      | edited              |
+#      | labeled             |
+#      | reopened            |
