@@ -1,0 +1,71 @@
+{
+  "expand": "description,lead,issueTypes,url,projectKeys,permissions,insight",
+  "self": "https://fakejira/rest/api/2/project/12345",
+  "id": "12346",
+  "key": "TEST2",
+  "description": "",
+  "lead": {
+    "self": "https://fakejira/rest/api/2/user?accountId=123456:12345678-1234-1234-1234-12345678901",
+    "key": "testuser",
+    "accountId": "123456:12345678-1234-1234-1234-12345678901",
+    "name": "testuser",
+    "avatarUrls": {
+      "48x48": "https://avatarurl",
+      "24x24": "https://avatarurl",
+      "16x16": "https://avatarurl",
+      "32x32": "https://avatarurl"
+    },
+    "displayName": "Test User",
+    "active": true
+  },
+  "components": [],
+  "issueTypes": [
+    {
+      "self": "https://fakejira/rest/api/2/issuetype/23456",
+      "id": "23456",
+      "description": "A small, distinct piece of work.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
+      "name": "Task",
+      "subtask": false,
+      "avatarId": 10318
+    },
+    {
+      "self": "https://fakejira/rest/api/2/issuetype/34567",
+      "id": "34567",
+      "description": "A collection of related bugs, stories, and tasks.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10307&avatarType=issuetype",
+      "name": "Epic",
+      "subtask": false,
+      "avatarId": 10307
+    },
+    {
+      "self": "https://fakejira/rest/api/2/issuetype/45678",
+      "id": "45678",
+      "description": "Subtasks track small pieces of work that are part of a larger task.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10316&avatarType=issuetype",
+      "name": "Subtask",
+      "subtask": true,
+      "avatarId": 10316
+    }
+  ],
+  "assigneeType": "UNASSIGNED",
+  "versions": [],
+  "name": "TEST2",
+  "roles": {
+    "Viewer": "https://fakejira/rest/api/2/project/12345/role/10735",
+    "Member": "https://fakejira/rest/api/2/project/12345/role/10734"
+  },
+  "avatarUrls": {
+    "48x48": "https://fakejira/secure/projectavatar?pid=12345&avatarId=11418",
+    "24x24": "https://fakejira/secure/projectavatar?size=small&s=small&pid=12345&avatarId=11418",
+    "16x16": "https://fakejira/secure/projectavatar?size=xsmall&s=xsmall&pid=12345&avatarId=11418",
+    "32x32": "https://fakejira/secure/projectavatar?size=medium&s=medium&pid=12345&avatarId=11418"
+  },
+  "projectTypeKey": "software",
+  "simplified": true,
+  "style": "next-gen",
+  "isPrivate": false,
+  "properties": {},
+  "entityId": "12345678-1234-1234-1234-123456789012",
+  "uuid": "12345678-1234-1234-1234-123456789012"
+}

@@ -51,25 +51,25 @@ Feature: Synchronization of fields and states
       | labeled             |
       | reopened            |
 
-  Scenario Outline: Label prefixed with 'sub' (<GithubActionStatus> issue)
+  Scenario Outline: Label prefixed with 'own' (<GithubActionStatus> issue)
     Given The action is configured with project 'TEST', issue type 'Subtask' and label 'TEST-999'
-    And we add a label 'subTEST-456'
+    And we add a label 'ownTEST-456'
     When a '<GithubActionStatus>' action triggers
-    Then we upgrade JIRA, write 'Adding sub-ed JIRA Issue TEST-456 to the list of JIRA Issues to upgrade' in the logs and exit successfully
+    Then we upgrade JIRA, write 'Adding own-ed JIRA Issue TEST-456 to the list of JIRA Issues to upgrade' in the logs and exit successfully
 
     Examples:
-      | GithubActionStatus  |
-      | opened              |
-      | closed              |
-      | deleted             |
-      | edited              |
-      | labeled             |
-      | reopened            |
+      | GithubActionStatus |
+      | opened             |
+      | closed             |
+      | deleted            |
+      | edited             |
+      | labeled            |
+      | reopened           |
 
 
   Scenario: Closed on Done doesn't trigger transition
     Given The action is configured with project 'TEST', issue type 'Subtask' and label 'UNRELATED-LABEL'
-    And we add a label 'subTEST-DONE'
+    And we add a label 'ownTEST-DONE'
     And there's no assignee
     When a 'closed' action triggers
     Then we upgrade JIRA, don't write 'Transitioning JIRA Issue TEST-DONE' in the logs and exit successfully
@@ -82,10 +82,10 @@ Feature: Synchronization of fields and states
     Then we upgrade JIRA, write '<MessageToLookFor>' in the logs and exit successfully
 
     Examples:
-      | JIRAStatus  | JIRAToLabel        | MessageToLookFor                                                             |
-      | TODO        | subTEST-TODO       | Transitioning JIRA Issue TEST-TODO to Done                                   |
-      | INPROGRESS  | subTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to Done                             |
-      | DONE        | subTEST-DONE       | Adding sub-ed JIRA Issue TEST-DONE to the list of JIRA Issues to upgrade     |
+      | JIRAStatus | JIRAToLabel        | MessageToLookFor                                                         |
+      | TODO       | ownTEST-TODO       | Transitioning JIRA Issue TEST-TODO to Done                               |
+      | INPROGRESS | ownTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to Done                         |
+      | DONE       | ownTEST-DONE       | Adding own-ed JIRA Issue TEST-DONE to the list of JIRA Issues to upgrade |
 
 
   Scenario Outline: Deleted trigger deletes issue in JIRA when JIRA status was <JIRAStatus>
@@ -96,15 +96,15 @@ Feature: Synchronization of fields and states
     Then we upgrade JIRA, write '<MessageToLookFor>' in the logs and exit successfully
 
     Examples:
-      | JIRAStatus  | JIRAToLabel        | MessageToLookFor                                                             |
-      | TODO        | subTEST-TODO       | -- deleted TEST-TODO                                                         |
-      | INPROGRESS  | subTEST-INPROGRESS | -- deleted TEST-INPROGRESS                                                   |
-      | DONE        | subTEST-DONE       | -- deleted TEST-DONE                                                         |
+      | JIRAStatus | JIRAToLabel        | MessageToLookFor           |
+      | TODO       | ownTEST-TODO       | -- deleted TEST-TODO       |
+      | INPROGRESS | ownTEST-INPROGRESS | -- deleted TEST-INPROGRESS |
+      | DONE       | ownTEST-DONE       | -- deleted TEST-DONE       |
 
 
   Scenario: Reopened on ToDo doesn't trigger transition
     Given The action is configured with project 'TEST', issue type 'Subtask' and label 'UNRELATED-LABEL'
-    And we add a label 'subTEST-TODO'
+    And we add a label 'ownTEST-TODO'
     And there's no assignee
     When a 'reopened' action triggers
     Then we upgrade JIRA, don't write 'Transitioning JIRA Issue TEST-TODO' in the logs and exit successfully
@@ -117,15 +117,15 @@ Feature: Synchronization of fields and states
     Then we upgrade JIRA, write '<MessageToLookFor>' in the logs and exit successfully
 
     Examples:
-      | JIRAStatus  | JIRAToLabel        | MessageToLookFor                                                             |
-      | TODO        | subTEST-TODO       | Adding sub-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade     |
-      | INPROGRESS  | subTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                            |
-      | DONE        | subTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                                  |
+      | JIRAStatus | JIRAToLabel        | MessageToLookFor                                                         |
+      | TODO       | ownTEST-TODO       | Adding own-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade |
+      | INPROGRESS | ownTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                        |
+      | DONE       | ownTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                              |
 
 
   Scenario: Opened on ToDo doesn't trigger transition
     Given The action is configured with project 'TEST', issue type 'Subtask' and label 'UNRELATED-LABEL'
-    And we add a label 'subTEST-TODO'
+    And we add a label 'ownTEST-TODO'
     And there's no assignee
     When a 'opened' action triggers
     Then we upgrade JIRA, don't write 'Transitioning JIRA Issue TEST-TODO' in the logs and exit successfully
@@ -139,24 +139,31 @@ Feature: Synchronization of fields and states
 
     Examples:
       | JIRAStatus | JIRAToLabel        | MessageToLookFor                                                         |
-      | TODO       | subTEST-TODO       | Adding sub-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade |
-      | INPROGRESS | subTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                        |
-      | DONE       | subTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                              |
+      | TODO       | ownTEST-TODO       | Adding own-ed JIRA Issue TEST-TODO to the list of JIRA Issues to upgrade |
+      | INPROGRESS | ownTEST-INPROGRESS | Transitioning JIRA Issue TEST-INPROGRESS to To Do                        |
+      | DONE       | ownTEST-DONE       | Transitioning JIRA Issue TEST-DONE to To Do                              |
 
 
-#  Scenario Outline: Multi-project action with status <JIRAStatus>
-#    Given The action is configured with project '[ "TEST", "TEST2" ]', issue type 'Subtask' and label 'TEST-123'
-#    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
-#    And the title is now set to 'A new title' in GITHUB
-#    And the summary was set to 'An old title' in JIRA
-#    When a '<GithubActionStatus>' action triggers
-#    Then we upgrade JIRA, write '--- updated with: {' and '"summary":"A new title"' in the logs and exit successfully
-#
-#    Examples:
-#      | GithubActionStatus  |
-#      | opened              |
-#      | closed              |
-#      | deleted             |
-#      | edited              |
-#      | labeled             |
-#      | reopened            |
+  Scenario: Multi-project action
+    Given The action is configured with project 'TEST, TEST2, TEST4', issue type 'Subtask' and label 'TEST-123'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers
+    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-555"' and 'Updating JIRA Issue: "TEST-456"' in the logs and exit successfully
+
+  Scenario: Multi-IssueType action with just one project ignore the other Issue Type
+    Given The action is configured with project 'TEST', issue type 'Subtask, Sub-Task' and label 'TEST-123'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers
+    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"summary":"A new title"' in the logs and exit successfully
+
+  Scenario: Multi-IssueType action
+    Given The action is configured with project 'TEST, TEST2, TEST4', issue type 'Subtask, Sub-task' and label 'TEST-123'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers
+    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and 'Creating JIRA Issue of type : "Sub-task" with title: A JIRA subtask' in the logs and exit successfully

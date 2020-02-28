@@ -2,7 +2,7 @@
   "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
   "id": "78901",
   "self": "https://fakejira/rest/api/2/issue/78901",
-  "key": "TEST-999",
+  "key": "TEST-2",
   "fields": {
     "summary": "A JIRA story synched with GITHUB",
     "issuetype": {
@@ -43,11 +43,12 @@
         "content": "https://fakejira/secure/attachment/32087/animation-fireworks"
       }
     ],
-    "subtasks": [ ],
+    "subtasks": [
+    ],
     "duedate": null,
-    "description": "A good to have a description\n\nWith some *formatting*\n\n+_And other stuff_+",
+    "description": "That would be good to have a description\n\nWith some *formatting*\n\n+_And other stuff_+",
     "votes": {
-      "self": "https://fakejira/rest/api/2/issue/TEST-999/votes",
+      "self": "https://fakejira/rest/api/2/issue/TEST-2/votes",
       "votes": 0,
       "hasVoted": false
     },
@@ -81,8 +82,8 @@
     "project": {
       "self": "https://fakejira/rest/api/3/project/13036",
       "id": "13036",
-      "key": "TEST",
-      "name": "Test Project",
+      "key": "TEST2",
+      "name": "Test Project2",
       "projectTypeKey": "software",
       "simplified": true,
       "avatarUrls": {

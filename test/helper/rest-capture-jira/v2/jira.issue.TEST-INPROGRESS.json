@@ -34,6 +34,20 @@
       "name": "Sub-task",
       "subtask": true,
       "avatarId": 10316
+    },
+    "project": {
+      "self": "https://fakejira/rest/api/3/project/13036",
+      "id": "13036",
+      "key": "TEST",
+      "name": "Test Project",
+      "projectTypeKey": "software",
+      "simplified": true,
+      "avatarUrls": {
+        "48x48": "https://fakejira/secure/projectavatar?pid=13036&avatarId=11423",
+        "24x24": "https://fakejira/secure/projectavatar?size=small&s=small&pid=13036&avatarId=11423",
+        "16x16": "https://fakejira/secure/projectavatar?size=xsmall&s=xsmall&pid=13036&avatarId=11423",
+        "32x32": "https://fakejira/secure/projectavatar?size=medium&s=medium&pid=13036&avatarId=11423"
+      }
     }
   }
 }

@@ -53,7 +53,7 @@ Feature: Negative testing
     And the label is DONOTEXIST-123
     And my JIRA credentials are correct
     When the action is triggered on an opened issue
-    Then we fail the action, exit with error 'Project doesn't exist in JIRA' and write "### project DONOTEXIST is invalid in JIRA" in the logs
+    Then we fail the action, exit with warning 'The JIRA Project DONOTEXIST does not exist or you don't have access.' and write "---! none of the project key listed are link to project that exist" in the logs
 
   Scenario: Configured Issue Type doesn't exist in JIRA
     Given I specify project 'TEST'
@@ -61,7 +61,7 @@ Feature: Negative testing
     And the JIRA issue type is set to 'donotexist'
     And my JIRA credentials are correct
     When the action is triggered on an opened issue
-    Then we fail the action, exit with error 'The JIRA issue type specified does not exist or is ambiguous' and write "### Issue Type donotexist is invalid in JIRA" in the logs
+    Then we fail the action, exit with error 'No Issue Type exist for those project in JIRA' and write "---! none of the project have the Issue Type donotexist" in the logs
 
   Scenario: JIRA has no issue with the label as IssueID
     Given I specify project 'TEST'
@@ -73,7 +73,7 @@ Feature: Negative testing
   Scenario: Data in JIRA same as in Github
     Given I specify project 'TEST'
     And my JIRA credentials are correct
-    And the label is subTEST-456
+    And the label is ownTEST-456
     And the issue in GITHUB has the same title, body and comments than issue 'TEST-456' in JIRA
     When the action is triggered on an opened issue
     Then we finish the action successfully and write '-- all fields are synced between issue #' as an info in the logs

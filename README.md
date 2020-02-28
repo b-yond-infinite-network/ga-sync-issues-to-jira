@@ -52,11 +52,11 @@ For all options, you can customize them in your workflow configuration by adding
           SUBTASK_MODE:     false
 ```
 In this configuration, the synchronization will be triggered for each Issue change (opening, editing...) and every JIRA 
-Issue tagged in the GITHUB Issue label will be replaced by the information from Github (Subtask mode)
+Issue tagged in the GITHUB Issue label will be replaced by the information from Github (non-Subtask mode)
+
 
 # Base parameters 
 Here are the **required** parameters to start
-
 
 #### **JIRA_BASEURL**
 ##### The hostname to connect to JIRA (do not add https://). 
@@ -83,6 +83,23 @@ Here are the **required** parameters to start
 ##### This is JIRA Project key. 
 > This will tell the action in which project in JIRA to synchronize the issues into. 
 > Value should be a JIRA project _**Key**_ (like `PRO`, `TES`...), not a JIRA project name
+> 
+> * Note: You can specify multiple project allowed for the repo separating their name with a comman, like so:
+>
+>   ``JIRA_PROJET: PROJECT_KEYNAME, OTHERPROJECT_KEYNAME, THIRDPROJECT_KEYNAME``
+
+#### **JIRA_ISSUETYPE_NAME**:
+##### This is JIRA Project key. 
+> This is the name of the Issue Type we will be using to push our issue information in JIRA. 
+> The default value (`Subtask`) is valid for modern Agile project in JIRA. For old ones, you may want to specify `Sub-task`
+> 
+> * Note: When you specify multiple project in `JIRA_PROJECTKEY` it will use this value for all of them unless you 
+>   list them in this parameter separated with comma, like so:
+>
+>   `JIRA_ISSUETYPE_NAME: Subtask, Sub-task, Subtask`
+>   
+>   In this example, the first project will be match with Issue Type `Subtask`, the second with `Sub-task` and the third with `Subtask`
+>   If you don't specify enough Issue Type, the last one in the list will be used for the missing project.
 
 
 # In action

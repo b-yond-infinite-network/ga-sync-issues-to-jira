@@ -131,23 +131,53 @@ Then(/^we fail the action, exit with error '(.*)' and write "(.*)" in the logs$/
     const { syncJiraWithGH } = require( '../../src/sync' )
     await syncJiraWithGH()
     
-    console.log     = oldLog
+    console.log = oldLog
     
     captureConsole.stopCapture()
     const consoleErrors = captureConsole.getCapturedText()
-    expect( consoleErrors.findIndex( currentOutput => currentOutput.startsWith( `::error::"${ errorContent }"` ) ) ).not.toEqual( -1 )
-    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) ).not.toEqual( -1 )
-    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) ).not.toEqual( -1 )
+    expect( consoleErrors.findIndex( currentOutput => currentOutput.startsWith( `::error::"${ errorContent }"` ) ) )
+        .not
+        .toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) )
+        .not
+        .toEqual( -1 )
+    expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) )
+        .not
+        .toEqual( -1 )
 } )
 
-Then(/^we finish the action successfully and write '([^']*)' as an info in the logs$/, async ( warningToFindInLogs ) => {
-    captureConsole.startCapture()
-    const consoleLogsOutput = mockLog()
+Then( /^we fail the action, exit with warning '(.*)' and write "(.*)" in the logs$/,
+      async ( warningContent, messageToFindInLogs ) => {
+          captureConsole.startCapture()
+          const consoleLogsOutput = mockLog()
     
-    const { syncJiraWithGH } = require( '../../src/sync' )
-    await syncJiraWithGH()
+          const { syncJiraWithGH } = require( '../../src/sync' )
+          await syncJiraWithGH()
     
-    console.log = oldLog
+          console.log = oldLog
+    
+          captureConsole.stopCapture()
+          const consoleErrors = captureConsole.getCapturedText()
+          expect( consoleErrors.findIndex( currentOutput => currentOutput.startsWith( `::warning::${ warningContent }` ) ) )
+              .not
+              .toEqual( -1 )
+          expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( 'Ending Action' ) !== -1 ) )
+              .not
+              .toEqual( -1 )
+          expect( consoleLogsOutput.findIndex( currentOutput => currentOutput.indexOf( messageToFindInLogs ) !== -1 ) )
+              .not
+              .toEqual( -1 )
+      } )
+
+Then( /^we finish the action successfully and write '([^']*)' as an info in the logs$/,
+      async ( warningToFindInLogs ) => {
+          captureConsole.startCapture()
+          const consoleLogsOutput = mockLog()
+    
+          const { syncJiraWithGH } = require( '../../src/sync' )
+          await syncJiraWithGH()
+    
+          console.log = oldLog
     
     captureConsole.stopCapture()
     const consoleErrors = captureConsole.getCapturedText()
