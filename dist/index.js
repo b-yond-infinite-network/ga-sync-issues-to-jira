@@ -25808,6 +25808,13 @@ exports.setFailed = setFailed;
 // Logging Commands
 //-----------------------------------------------------------------------
 /**
+ * Gets whether Actions Step Debug is on or not
+ */
+function isDebug() {
+    return process.env['RUNNER_DEBUG'] === '1';
+}
+exports.isDebug = isDebug;
+/**
  * Writes debug message to user log
  * @param message debug message
  */
@@ -58449,7 +58456,7 @@ module.exports =
 /******/ 	// the startup function
 /******/ 	function startup() {
 /******/ 		// Load entry module and return exports
-/******/ 		return __webpack_require__(104);
+/******/ 		return __webpack_require__(503);
 /******/ 	};
 /******/
 /******/ 	// run startup
@@ -58475,640 +58482,17 @@ exports.Strike = Strike;
 
 /***/ }),
 
-/***/ 104:
-/***/ (function(module, __unusedexports, __nested_webpack_require_1773__) {
-
-const { Document, marks, Heading, Text, Emoji, BulletList, OrderedList, ListItem, CodeBlock, BlockQuote, Paragraph, Rule }	= __nested_webpack_require_1773__( 286 )
-
-function translateGITHUBMarkdownToADF( markdownText ){
-	
-	const textTree = buildTreeFromMarkdown( markdownText )
-	
-	const adfRoot = new Document()
-	if( textTree.length > 0 )
-		fillADFNodesWithMarkdown( adfRoot, textTree )
-	
-	return adfRoot
-}
-
-
-function buildTreeFromMarkdown( rawTextMarkdown ){
-	///MARDKOWN logic - closing code blocks
-	//  When a code block is open, it should be closed by a triple caret, everything in between is code
-	const { codeBlockHandled } = rawTextMarkdown.split( /\r\n|\r|\n/ ).reduce( ( { codeBlockHandled, indexCurrentCodeBloc }, currentLine, indexCurrentLine ) => {
-		const lineTranslation = translateMarkdownLineToADF( currentLine )
-		
-		if( typeof indexCurrentCodeBloc === "undefined"
-			&& ( lineTranslation.adfType === 'codeBlock'
-				 || lineTranslation.nodeAttached ) ){
-			codeBlockHandled.push( lineTranslation )
-			if( lineTranslation.nodeAttached ){
-				codeBlockHandled.push( lineTranslation.nodeAttached )
-			}
-			
-			return { codeBlockHandled, indexCurrentCodeBloc: codeBlockHandled.length - 1 }
-		}
-		
-		if( typeof indexCurrentCodeBloc !== "undefined"
-			&& ( lineTranslation.adfType !== 'codeBlock'
-				 || typeof lineTranslation.typeParam === "undefined"
-				 || lineTranslation.typeParam !== '' ) ) {
-			const textToAdd = lineTranslation.textPosition >= codeBlockHandled[ indexCurrentCodeBloc ].textPosition
-							  ? currentLine.slice( codeBlockHandled[ indexCurrentCodeBloc ].textPosition )
-							  : currentLine
-			codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis = codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis
-																	  + ( codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis === ''
-																		  ? textToAdd
-																		  : '\n' + textToAdd )
-			return { codeBlockHandled, indexCurrentCodeBloc }
-		}
-		
-		if( typeof indexCurrentCodeBloc !== "undefined"
-			&& lineTranslation.adfType === 'codeBlock'
-			&& typeof lineTranslation.typeParam !== "undefined"
-			&& lineTranslation.typeParam === '' ){
-			return { codeBlockHandled }
-		}
-		
-		codeBlockHandled.push( lineTranslation )
-		
-		return { codeBlockHandled }
-	}, { codeBlockHandled: [] } )
-	
-	//MARKDOWN -- handling of unfinished empty codeBlock
-	const cleanedCodeBlock = codeBlockHandled.filter( ( currentNode ) => {
-		if( currentNode.adfType !== 'codeBlock' )
-			return currentNode
-		
-		if( currentNode.textToEmphasis !== '' )
-			return currentNode
-	} )
-	
-	
-	///MARKDOWN logic
-	// blockquote handling => blockquote start with each line identify with a caret
-	// any interruption (line break) create a new blockquote
-	const { blockquotedNodes } = cleanedCodeBlock.reduce( ( { blockquotedNodes, currentLastThatWasBlockQuote }, currentLineNode ) => {
-		
-		if( !currentLastThatWasBlockQuote
-			&& currentLineNode.adfType === 'blockQuote' ){
-			blockquotedNodes.push( currentLineNode )
-			return { blockquotedNodes, currentLastThatWasBlockQuote: currentLineNode }
-		}
-		
-		//this is a non-empty paragraph, if we are already filling up a paragraph, let's add the text inside
-		if( currentLastThatWasBlockQuote
-			&& currentLineNode.adfType === 'blockQuote' ){
-			currentLastThatWasBlockQuote.textToEmphasis = currentLastThatWasBlockQuote.textToEmphasis +
-														  ' ' + currentLineNode.textToEmphasis
-			return { blockquotedNodes, currentLastThatWasBlockQuote }
-		}
-		
-		//this is non-blockquote node, we add it to the list
-		blockquotedNodes.push( currentLineNode )
-		return { blockquotedNodes }
-		
-	}, { blockquotedNodes: [ ] } )
-	
-	
-	///MARKDOWN logic
-	// empty line handling => heading is an exception, otherwise non-empty line aggregate in the parent element
-	// For all other type, following a markdown with any paragraph of text is considered a continuation, so we aggregate
-	//  all subsequent text into the same parent element (paragraph, list item, ...)
-	const { breakedLineNodes } = blockquotedNodes.reduce( ( { breakedLineNodes, currentParent, lastWasAlsoAParagraph }, currentLineNode ) => {
-		
-		if( currentLineNode.adfType === 'heading'
-			|| currentLineNode.adfType === 'divider'
-			|| currentLineNode.adfType === 'codeBlock' ){
-			breakedLineNodes.push( currentLineNode )
-			return { breakedLineNodes }
-		}
-		
-		if( currentLineNode.adfType !== 'paragraph' ){
-			breakedLineNodes.push( currentLineNode )
-			return { breakedLineNodes, currentParent: currentLineNode }
-		}
-		
-		if( !lastWasAlsoAParagraph
-			&& /^(?:[\s]*)$/.test( currentLineNode.textToEmphasis ) ) {
-			//we're breaking into a new paragraph
-			return { breakedLineNodes, lastWasAlsoAParagraph: true }
-		}
-		
-		if( lastWasAlsoAParagraph
-			&& /^(?:[\s]*)$/.test( currentLineNode.textToEmphasis ) ) {
-			//we've double break, we add a paragraph
-			breakedLineNodes.push( currentLineNode )
-			return { breakedLineNodes }
-		}
-		
-		//this is a non-empty paragraph, if we are already filling up a paragraph, let's add the text inside
-		if( currentParent ){
-			const textToAdd = currentLineNode.textPosition >= currentParent.textPosition
-							  ? currentLineNode.textToEmphasis.slice( currentParent.textPosition )
-							  : currentLineNode.textToEmphasis
-			currentParent.textToEmphasis = currentParent.textToEmphasis + ( currentLineNode.textToEmphasis.charAt( 0 ) !== ' '
-																			? ' ' + textToAdd
-																			: textToAdd )
-			return { breakedLineNodes, currentParent }
-		}
-		
-		//this is a lone new paragraph, we add it to the list
-		breakedLineNodes.push( currentLineNode )
-		return { breakedLineNodes, currentParent: currentLineNode }
-		
-	}, { breakedLineNodes: [ ] } )
-	
-	
-	///MARKDOWN logic
-	// Realign children nodes to orderedList and bulletList
-	const { accumulatedNodes } = breakedLineNodes.reduce( ( { accumulatedNodes, indexCurrentList }, currentLineNode ) => {
-		
-		if( currentLineNode.adfType !== 'heading'
-			&& currentLineNode.adfType !== 'divider'
-			&& currentLineNode.adfType !== 'orderedList'
-			&& currentLineNode.adfType !== 'bulletList'
-			&& indexCurrentList
-			&& currentLineNode.textPosition < accumulatedNodes[ indexCurrentList ].textPosition + 2 ){
-			currentLineNode.textPosition = accumulatedNodes[ indexCurrentList ].textPosition + 2
-		}
-		
-		accumulatedNodes.push( currentLineNode )
-		
-		if( currentLineNode.adfType === 'heading'
-			|| currentLineNode.adfType === 'divider' )
-			return { accumulatedNodes }
-		
-		if( currentLineNode.adfType === 'bulletList' || currentLineNode.adfType === 'orderedList' ){
-			return { accumulatedNodes, indexCurrentList: accumulatedNodes.length - 1 }
-		}
-		
-		return { accumulatedNodes, indexCurrentList }
-		
-	}, { accumulatedNodes: [ ] } )
-	
-	///MARKDOWN logic
-	// List all different levels to consider
-	const levelsPosition = accumulatedNodes.reduce( ( currentLevelList, currentNode ) => {
-		if( currentNode.adfType !== 'orderedList'
-			&& currentNode.adfType !== 'bulletList' )
-			return currentLevelList
-		
-		return ( currentLevelList.includes( currentNode.textPosition + 2 ) || currentLevelList.includes( currentNode.textPosition + 3 ) )
-			   ? currentLevelList
-			   : currentNode.textPosition + 2 > ( currentLevelList[ currentLevelList.length - 1 ] + 1 )
-				 ? [ ...currentLevelList, currentNode.textPosition + 2 ]
-				 : currentLevelList
-	}, [ 0 ] )
-	
-	///MARKDOWN logic
-	// Map all nodes to a specific level
-	const levelsListsIndexes = levelsPosition.map( ( currentLevelPosition, currentIndex ) => {
-		return accumulatedNodes.filter( currentList => ( currentList.textPosition >= currentLevelPosition
-														   && ( currentIndex === levelsPosition.length - 1 //this is the last level
-																|| currentList.textPosition < levelsPosition[ currentIndex + 1 ] ) ) )
-							   .map( currentList => ( {
-								   indexOfList: accumulatedNodes.indexOf( currentList ),
-								   children: [],
-								   node: currentList } ) )
-	} )
-	
-	
-	const treeOfNode = levelsListsIndexes.reduce( ( currentTree, currentArrayOfListIndexes, currentIndexInTheArrayOfListIndexes ) => {
-		const stepAtTree = currentArrayOfListIndexes.reduce( ( currentTreeValues, currentListValues ) => {
-			if( currentIndexInTheArrayOfListIndexes <= 0 )
-				return [ ...currentTreeValues, currentListValues ]
-			
-			const parentList = levelsListsIndexes[ currentIndexInTheArrayOfListIndexes - 1 ]
-			const lastParentWithIndexBelow = parentList.findIndex( currentParentListIndex => {
-				return currentParentListIndex.indexOfList > currentListValues.indexOfList
-			} )
-			const parentIndexToUse = lastParentWithIndexBelow === -1
-									 ? parentList.length - 1
-									 : lastParentWithIndexBelow === 0
-									   ? 0
-									   : lastParentWithIndexBelow - 1
-			if( parentIndexToUse < 0 )
-				throw 'Parent list of node is empty!'
-	
-			parentList[ parentIndexToUse ].children.push( currentListValues )
-			
-			return currentTreeValues
-		}, currentTree )
-		return stepAtTree
-	}, [] )
-	
-	
-	return treeOfNode
-}
-
-function translateMarkdownLineToADF( markdownLineTextWithTabs ){
-	const markdownLine = markdownLineTextWithTabs.replace( /\t/g, '    ' )
-	
-	const headerNode = matchHeader( markdownLine )
-	if( headerNode ) return headerNode
-	
-	const divider = matchDivider( markdownLine )
-	if( divider ) return divider
-	
-	
-	const listNode = matchList( markdownLine )
-	if( listNode ) return listNode
-	
-	
-	const blockQuoteNode = matchBlockQuote( markdownLine )
-	if( blockQuoteNode ) return blockQuoteNode
-	
-	
-	const codeBlockNode = matchCodeBlock( markdownLine )
-	if( codeBlockNode ) return codeBlockNode
-	
-	
-	const paragraphNode = matchParagraph( markdownLine )
-	if( paragraphNode ) return paragraphNode
-	
-	//this is a line break then
-	return { 	adfType : 		"paragraph",
-				textToEmphasis: "",
-				textPosition: 	markdownLine.length }
-}
-
-function matchHeader( lineToMatch ){
-	const headerType = lineToMatch.match( /^(?<headerNumber>[#]{1,6}) (?<headerText>.*)$/i )
-	if( headerType
-		&& headerType.groups
-		&& headerType.groups.headerNumber
-		&& headerType.groups.headerText ){
-		return { 	adfType : 		"heading",//adfRoot.heading( headerType.groups.headerNumber.length ),
-			textToEmphasis: headerType.groups.headerText,
-			typeParam:		headerType.groups.headerNumber.length,
-			textPosition: 	0
-		}
-	}
-	
-	return null
-}
-
-function matchList( lineToMatch ){
-	const list = lineToMatch.match( /^(?:[\s])*(?:[*\-+] |(?<orderedNumber>[0-9]+)[.)] )+(?<listText>.*)$/i )
-	if( list
-		&& list.groups
-		&& list.groups.listText ){
-		// adfDescription.bulletList( )
-		// 			  .textItem(  )
-		const textIsCodeBlock = matchCodeBlock( list.groups.listText )
-		if( textIsCodeBlock )
-			textIsCodeBlock.textPosition = lineToMatch.indexOf( list.groups.listText )
-		
-		return { 	adfType	: 		list.groups.orderedNumber
-										? "orderedList"
-										: "bulletList",
-			typeParam:		list.groups.orderedNumber,
-			textToEmphasis: textIsCodeBlock ? '': list.groups.listText,
-			textPosition: 	lineToMatch.indexOf( list.groups.listText ) - 2,
-			nodeAttached: 	textIsCodeBlock
-		}
-	}
-	
-	return null
-}
-
-function matchCodeBlock( lineToMatch ){
-	const codeBlock = lineToMatch.match( /^(?:[\s]*```)(?<Language>[^\s]*)$/i )
-	if( codeBlock
-		&& codeBlock.groups ){
-		
-		return { 	adfType: 		"codeBlock",
-			typeParam:		codeBlock.groups.Language,
-			textPosition: 	lineToMatch.indexOf( '```' ),
-			textToEmphasis: '' }
-	}
-	
-	return null
-}
-
-function matchBlockQuote( lineToMatch ){
-	const blockquote = lineToMatch.match( /^(?:[\s])*> (?<quoteText>.*)$/i )
-	if( blockquote
-		&& blockquote.groups
-		&& blockquote.groups.quoteText ){
-		
-		return { 	adfType : 		"blockQuote",
-			textToEmphasis: blockquote.groups.quoteText,
-			textPosition: 	lineToMatch.indexOf( '> ' ) }
-	}
-	
-	return null
-}
-
-function matchParagraph( lineToMatch ){
-	const paragraph = lineToMatch.match( /^(?:[\s]*)(?<paragraphText>[^\n]+)$/ )
-	if( paragraph
-		&& paragraph.groups
-		&& paragraph.groups.paragraphText ){
-		return { 	adfType : 		"paragraph",
-			textToEmphasis: paragraph.groups.paragraphText,
-			textPosition: 	!paragraph.groups.paragraphText.match( /^(?:[\s]*)$/ )
-							 ? lineToMatch.indexOf( paragraph.groups.paragraphText )
-							 : lineToMatch.length }
-	}
-	
-	return null
-}
-
-function matchDivider( lineToMatch ){
-	const divider = lineToMatch.match( /^(\s*-{3,}\s*|\s*\*{3,}\s*|\s*_{3,}\s*)$/ )
-	if( divider ){
-		return { 	adfType : 		"divider",
-					textToEmphasis: '',
-					textPosition: 	0 }
-	}
-
-	return null
-}
-
-function fillADFNodesWithMarkdown( currentParentNode, currentArrayOfNodesOfSameIndent ){
-	currentArrayOfNodesOfSameIndent.reduce( ( lastListNode, currentNode ) => {
-		
-		const nodeOrListNode = lastListNode !== null
-							   && ( currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList' )
-							   && lastListNode.content.type === currentNode.node.adfType
-							   ? lastListNode
-							   : addTypeToNode( currentParentNode, currentNode.node.adfType, currentNode.node.typeParam )
-		
-		const nodeOrListItem = currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList'
-							   ? nodeOrListNode.content.add( new ListItem() )
-							   : nodeOrListNode
-		const nodeToAttachTextTo = currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList' || currentNode.node.adfType === 'blockQuote'
-								   ? typeof currentNode.node.textToEmphasis !== 'undefined' || currentNode.children.length === 0
-									 ? nodeOrListItem.content.add( new Paragraph() )
-									 : nodeOrListItem
-								   : nodeOrListItem
-		
-		if( currentNode.node.adfType === 'divider' )
-			return lastListNode
-		
-		else if( currentNode.node.adfType !== 'codeBlock'
-			&& currentNode.node.textToEmphasis )
-			attachItemNode( nodeToAttachTextTo, currentNode.node.textToEmphasis )
-		
-		else if( currentNode.node.adfType !== 'codeBlock'
-				 && currentNode.node.textToEmphasis === '' )
-			attachItemNode( nodeToAttachTextTo, ' ' )
-			
-		else if( currentNode.node.adfType === 'codeBlock' )
-			attachTextToNodeRaw( nodeToAttachTextTo, currentNode.node.textToEmphasis )
-		
-		if( currentNode.children )
-			fillADFNodesWithMarkdown( nodeOrListItem, currentNode.children )
-		
-		return ( currentNode.node.adfType !== 'orderedList' && currentNode.node.adfType !== 'bulletList' )
-			   || ( !lastListNode || currentNode.node.adfType === lastListNode.content.type )
-			   ? nodeOrListNode
-			   : lastListNode
-	}, null )
-}
-
-function addTypeToNode( adfNodeToAttachTo, adfType, typeParams ){
-	switch( adfType ) {
-		case "heading":
-			return adfNodeToAttachTo.content.add( new Heading( typeParams ) )
-		
-		case "divider":
-			return adfNodeToAttachTo.content.add( new Rule() )
-		
-		case "bulletList":
-			return adfNodeToAttachTo.content.add( new BulletList() )
-		
-		case "orderedList": {
-			const orderedListNode = new OrderedList( )
-			if( typeParams ) orderedListNode.attrs = { order: typeParams }
-			return adfNodeToAttachTo.content.add( orderedListNode )
-		}
-		
-		case "codeBlock":
-			return adfNodeToAttachTo.content.add( new CodeBlock( typeParams ) )
-		
-		case "blockQuote":
-			return adfNodeToAttachTo.content.add( new BlockQuote() )
-		
-		case "paragraph":
-			return adfNodeToAttachTo.content.add( new Paragraph() )
-		
-		default:
-			throw 'incompatible type'
-	}
-}
-
-
-function attachItemNode( nodeToAttachTo, rawText ) {
-	const slicedInline = sliceInLineCode( rawText )
-	
-	const { slicedInlineAndEmoji } = slicedInline.reduce( ( { slicedInlineAndEmoji }, currentSlice ) => {
-		if( !currentSlice.isMatching ){
-			const slicedEmoji = sliceEmoji( currentSlice.text )
-			
-			return { slicedInlineAndEmoji: slicedInlineAndEmoji.concat( slicedEmoji ) }
-		}
-		
-		slicedInlineAndEmoji.push( currentSlice )
-		return { slicedInlineAndEmoji }
-	}, { slicedInlineAndEmoji: [] } )
-	
-	const { slicedInlineAndEmojiAndLink } = slicedInlineAndEmoji.reduce( ( { slicedInlineAndEmojiAndLink }, currentSlice ) => {
-		if( !currentSlice.isMatching ){
-			const slicedLink = sliceLink( currentSlice.text )
-			
-			return { slicedInlineAndEmojiAndLink: slicedInlineAndEmojiAndLink.concat( slicedLink ) }
-		}
-		
-		slicedInlineAndEmojiAndLink.push( currentSlice )
-		return { slicedInlineAndEmojiAndLink }
-	}, { slicedInlineAndEmojiAndLink: [] } )
-	
-	for( const currentSlice of slicedInlineAndEmojiAndLink ) {
-		switch( currentSlice.type ){
-			case 'inline':
-				const inlineCodeNode = new Text( currentSlice.text, marks().code() )
-				nodeToAttachTo.content.add( inlineCodeNode )
-				break
-			
-			case 'emoji':
-				const emojiNode = new Emoji( {shortName: currentSlice.text } )
-				nodeToAttachTo.content.add( emojiNode )
-				break
-			
-			case 'link':
-				const linkNode = new Text( currentSlice.text,
-										   marks().link( currentSlice.optionalText1,
-														 currentSlice.optionalText2 ) )
-				nodeToAttachTo.content.add( linkNode )
-				break
-			
-			case 'image':
-				const imageNode = new Text( currentSlice.text,
-											marks().link( currentSlice.optionalText1,
-														  currentSlice.optionalText2 ) )
-				nodeToAttachTo.content.add( imageNode )
-				break
-			
-			default:
-				attachTextToNodeSliceEmphasis( nodeToAttachTo, currentSlice.text )
-				// const textNode = new Text( currentSlice.text, marksToUse )
-				// nodeToAttachTo.content.add( textNode )
-		}
-	}
-}
-
-function sliceInLineCode( rawText ){
-	return sliceOneMatchFromRegexp( rawText, 'inline', /(?<nonMatchBefore>[^`]*)(?:`(?<match>[^`]+)`)(?<nonMatchAfter>[^`]*)/g )
-}
-
-function sliceEmoji( rawText ){
-	return sliceOneMatchFromRegexp( rawText, 'emoji',/(?<nonMatchBefore>[^`]*)(?::(?<match>[^`\s]+):)(?<nonMatchAfter>[^`]*)/g )
-}
-
-function sliceLink( rawText ){
-	return sliceOneMatchFromRegexp( rawText, 'link',/(?<nonMatchBefore>[^`]*)(?:\[(?<match>[^\[\]]+)\]\((?<matchOptional>[^\(\)"]+)(?: "(?<matchOptional2>[^"]*)")?\))(?<nonMatchAfter>[^`]*)/g )
-}
-
-function sliceOneMatchFromRegexp( rawText, typeTag, regexpToSliceWith ){
-	let slicesResult = [ ]
-	let snippet = null
-	let hasAtLeastOneExpression = false
-	
-	while( ( snippet = regexpToSliceWith.exec( rawText ) ) ) {
-		hasAtLeastOneExpression = true
-		if( snippet.groups.nonMatchBefore ){
-			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchBefore } )
-		}
-		
-		if( snippet.groups.match ){
-			slicesResult.push( {
-								   isMatching: 		true,
-								   type: 			typeTag,
-								   text: 			snippet.groups.match,
-								   optionalText1: 	snippet.groups.matchOptional,
-								   optionalText2: 	snippet.groups.matchOptional2
-							   } )
-		}
-		
-		if( snippet.groups.nonMatchAfter ){
-			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchAfter } )
-		}
-	}
-	
-	if( !hasAtLeastOneExpression )
-		slicesResult.push( { isMatching: false, text: rawText } )
-	
-	return slicesResult
-}
-
-function attachTextToNodeSliceEmphasis( parentNode, textToEmphasis ){
-	const lineUnderscored = textToEmphasis.replace( /\*/g, '_' )
-	let currentDecorationLevel = 0
-	//see convertDecorationLevelToMark
-	// 0 => no decoration
-	// 1 => italic
-	// 2 => bold
-	// 3 => bold and italic
-	
-	let potentialUnderscorePair = false
-	let strikedThrough			= false
-	let expressionBuffer		= ''
-	for( const currentCharacterIndex in lineUnderscored ){
-		
-		if( lineUnderscored[ currentCharacterIndex ] !== '_' ){
-			expressionBuffer += lineUnderscored[ currentCharacterIndex ]
-			
-			if( potentialUnderscorePair ){
-				currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 2
-										 ? currentDecorationLevel + 1
-										 : currentDecorationLevel - 1
-				potentialUnderscorePair = false
-			}
-		}
-		
-		if( currentCharacterIndex > 0
-			&& lineUnderscored[ currentCharacterIndex ] === '~'
-			&& lineUnderscored[ currentCharacterIndex - 1 ] === '~' ){
-			const textNode = new Text( expressionBuffer.slice( 0, expressionBuffer.length - 2 ),
-									   convertDecorationLevelToMark( currentDecorationLevel, strikedThrough ) )
-			parentNode.content.add( textNode )
-			
-			expressionBuffer = ''
-			strikedThrough = !strikedThrough
-		}
-
-		
-		if( lineUnderscored[ currentCharacterIndex ] === '_' ){
-			let decorationToUse = convertDecorationLevelToMark( currentDecorationLevel, strikedThrough )
-			
-			if( expressionBuffer !== '' ){
-				const textNode = new Text( expressionBuffer, decorationToUse )
-				parentNode.content.add( textNode )
-				// textWithInline( parentNode, expressionBuffer, decorationToUse )
-			}
-			else {
-				if( potentialUnderscorePair )
-					currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 1
-											 ? currentDecorationLevel + 2
-											 : currentDecorationLevel - 2
-			}
-			
-			potentialUnderscorePair = !potentialUnderscorePair
-			expressionBuffer = ''
-		}
-	}
-	
-	if( expressionBuffer !== '' ){
-		const textNode = new Text( expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel, strikedThrough ) )
-		parentNode.content.add( textNode )
-	}
-	// textWithInline( parentNode, expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel ) )
-}
-
-function convertDecorationLevelToMark( decorationLevelToConvert, addStrikethrough ){
-	if( addStrikethrough )
-		return decorationLevelToConvert === 1
-			   ? marks().strike().em()
-			   : decorationLevelToConvert === 2
-				 ? marks().strike().strong()
-				 : decorationLevelToConvert === 3
-				   ? marks().strike().strong().em()
-				   : marks().strike()
-
-	return decorationLevelToConvert === 1
-		   ? marks().em()
-		   : decorationLevelToConvert === 2
-			 ? marks().strong()
-			 : decorationLevelToConvert === 3
-			   ? marks().strong().em()
-			   : null
-}
-
-
-function attachTextToNodeRaw( nodeToAttachTo, textToAttach ){
-	const textNode = new Text( textToAttach )
-	nodeToAttachTo.content.add( textNode )
-}
-
-module.exports = translateGITHUBMarkdownToADF
-
-
-/***/ }),
-
 /***/ 135:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_23536__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_1773__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_23536__(526);
-const hard_break_1 = __nested_webpack_require_23536__(570);
-const index_1 = __nested_webpack_require_23536__(492);
-const mention_1 = __nested_webpack_require_23536__(962);
-const text_1 = __nested_webpack_require_23536__(171);
+const emoji_1 = __nested_webpack_require_1773__(526);
+const hard_break_1 = __nested_webpack_require_1773__(570);
+const index_1 = __nested_webpack_require_1773__(492);
+const mention_1 = __nested_webpack_require_1773__(962);
+const text_1 = __nested_webpack_require_1773__(171);
 class Decision {
     constructor(localId, state) {
         this.localId = localId;
@@ -59159,16 +58543,16 @@ exports.Decision = Decision;
 /***/ }),
 
 /***/ 147:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_25146__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_3383__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_25146__(526);
-const hard_break_1 = __nested_webpack_require_25146__(570);
-const index_1 = __nested_webpack_require_25146__(492);
-const mention_1 = __nested_webpack_require_25146__(962);
-const text_1 = __nested_webpack_require_25146__(171);
+const emoji_1 = __nested_webpack_require_3383__(526);
+const hard_break_1 = __nested_webpack_require_3383__(570);
+const index_1 = __nested_webpack_require_3383__(492);
+const mention_1 = __nested_webpack_require_3383__(962);
+const text_1 = __nested_webpack_require_3383__(171);
 class Paragraph extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -59212,13 +58596,13 @@ exports.Paragraph = Paragraph;
 /***/ }),
 
 /***/ 171:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_26550__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_4787__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_26550__(812);
-const index_2 = __nested_webpack_require_26550__(492);
+const index_1 = __nested_webpack_require_4787__(812);
+const index_2 = __nested_webpack_require_4787__(492);
 function plain(text) {
     return new Text(text);
 }
@@ -59269,12 +58653,12 @@ exports.Text = Text;
 /***/ }),
 
 /***/ 192:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_27941__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_6178__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_27941__(711);
+const mark_1 = __nested_webpack_require_6178__(711);
 class Strong extends mark_1.Mark {
     constructor() {
         super('strong');
@@ -59285,14 +58669,345 @@ exports.Strong = Strong;
 
 /***/ }),
 
+/***/ 197:
+/***/ (function(module, __unusedexports, __nested_webpack_require_6533__) {
+
+/**********************************************************************************************************************
+ *
+ *  Markdown handling
+ *
+ *  @author bruno.morel@b-yond.com
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ * This build an intermediate representation tree and manage the hierarchy and priorities of the markdown expressions
+ *  each branch will contain an object with the follow properties:
+ *
+ **********************************************************************************************************************/
+const translateMarkdownLineToIR = __nested_webpack_require_6533__( 572 )
+
+/**
+ * @typedef {Object}  IRTreeNode
+ * @property {IRElement} 	node 			- intermediate representation of the markdown element
+ * @property {IRElement[]} 	children 		- the list of children attach to that node
+ * @property {Number} 		indexOfList 	- the index in the list of expression
+ */
+
+
+/**
+ * Implement markdown greediness and collapsing of subnode, generate the final node tree representing
+ *  the IRElement topology
+ *
+ * @param rawTextMarkdown	{String[]}		array of expression to parse and handle
+ *
+ * @returns {IRElement[]}	an array of IRElement
+ */
+function buildTreeFromMarkdown( rawTextMarkdown ){
+	//code block are the most greedy expression in markdown
+	const cleanedCodeBlock = collapseCodeBloc( rawTextMarkdown )
+	
+	//block quote collapse paragraphs, so we have to to them first
+	const blockquotedNodes = collapseBlockquote( cleanedCodeBlock )
+	
+	//paragraph themselves collapse when they are not separated by
+	// two consecutive empty lines
+	const breakedLineNodes = collapseParagraph( blockquotedNodes )
+	
+	//lists accumulate elements of the same level unless separated by
+	// 	two consecutive empty lines
+	const accumulatedNodes = accumulateLevelFromList( breakedLineNodes )
+	
+	//we build the array of textPosition for each level
+	const levelsPosition = createLevelList( accumulatedNodes )
+	
+	//map each element to a level, in order
+	const elementMap = mapIRToLevels( accumulatedNodes, levelsPosition )
+	
+	return buildTreeFromLevelMap( elementMap )
+}
+
+
+
+/**
+ * CodeBlock swallow all text until they are closed, so we collapsed all paragraph into them
+ *   When a code block is open, it should be closed by a triple caret, everything in between is code
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into collapsing
+ *
+ * @returns {IRElement[]}	an array of IRElement
+ */
+function collapseCodeBloc( rawIROfMarkdown ){
+	///MARDKOWN logic - closing code blocks
+	//
+	const { codeBlockHandled } =  rawIROfMarkdown.split( /\r\n|\r|\n/ ).reduce( ( { codeBlockHandled, indexCurrentCodeBloc }, currentLine ) => {
+		const lineTranslation = translateMarkdownLineToIR( currentLine )
+		
+		if( typeof indexCurrentCodeBloc === "undefined"
+			&& ( lineTranslation.adfType === 'codeBlock'
+				 || lineTranslation.nodeAttached ) ){
+			codeBlockHandled.push( lineTranslation )
+			if( lineTranslation.nodeAttached ){
+				codeBlockHandled.push( lineTranslation.nodeAttached )
+			}
+			
+			return { codeBlockHandled, indexCurrentCodeBloc: codeBlockHandled.length - 1 }
+		}
+		
+		if( typeof indexCurrentCodeBloc !== "undefined"
+			&& ( lineTranslation.adfType !== 'codeBlock'
+				 || typeof lineTranslation.typeParam === "undefined"
+				 || lineTranslation.typeParam !== '' ) ) {
+			const textToAdd = lineTranslation.textPosition >= codeBlockHandled[ indexCurrentCodeBloc ].textPosition
+							  ? currentLine.slice( codeBlockHandled[ indexCurrentCodeBloc ].textPosition )
+							  : currentLine
+			codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis = codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis
+																	  + ( codeBlockHandled[ indexCurrentCodeBloc ].textToEmphasis === ''
+																		  ? textToAdd
+																		  : '\n' + textToAdd )
+			return { codeBlockHandled, indexCurrentCodeBloc }
+		}
+		
+		if( typeof indexCurrentCodeBloc !== "undefined"
+			&& lineTranslation.adfType === 'codeBlock'
+			&& typeof lineTranslation.typeParam !== "undefined"
+			&& lineTranslation.typeParam === '' ){
+			return { codeBlockHandled }
+		}
+		
+		codeBlockHandled.push( lineTranslation )
+		
+		return { codeBlockHandled }
+	}, { codeBlockHandled: [] } )
+	
+	//handling of unfinished empty codeBlock
+	const cleanedCodeBlock = codeBlockHandled.filter( ( currentNode ) => {
+		if( currentNode.adfType !== 'codeBlock' )
+			return currentNode
+		
+		if( currentNode.textToEmphasis !== '' )
+			return currentNode
+	} )
+	
+	return cleanedCodeBlock
+}
+
+/**
+ * Blockquote start with each line identify with a caret. Any interruption (line break) create a new blockquote
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into collapsing
+ *
+ * @returns {IRElement[]}	an array of IRElement
+ */
+function collapseBlockquote( rawIROfMarkdown ){
+	const { blockquotedNodes } = rawIROfMarkdown.reduce( ( { blockquotedNodes, currentLastThatWasBlockQuote }, currentLineNode ) => {
+		
+		if( !currentLastThatWasBlockQuote
+			&& currentLineNode.adfType === 'blockQuote' ){
+			blockquotedNodes.push( currentLineNode )
+			return { blockquotedNodes, currentLastThatWasBlockQuote: currentLineNode }
+		}
+		
+		//this is a non-empty paragraph, if we are already filling up a paragraph, let's add the text inside
+		if( currentLastThatWasBlockQuote
+			&& currentLineNode.adfType === 'blockQuote' ){
+			currentLastThatWasBlockQuote.textToEmphasis = currentLastThatWasBlockQuote.textToEmphasis +
+														  ' ' + currentLineNode.textToEmphasis
+			return { blockquotedNodes, currentLastThatWasBlockQuote }
+		}
+		
+		//this is non-blockquote node, we add it to the list
+		blockquotedNodes.push( currentLineNode )
+		return { blockquotedNodes }
+		
+	}, { blockquotedNodes: [ ] } )
+	
+	return blockquotedNodes
+}
+
+/**
+ * Heading is an exception, otherwise non-empty line aggregate in the parent element
+ * For all other type, following a markdown with any paragraph of text is considered a continuation, so we aggregate
+ * all subsequent text into the same parent element (paragraph, list item, ...)
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into collapsing
+ *
+ * @returns {IRElement[]}	an array of IRElement
+ */
+function collapseParagraph( rawIROfMarkdown ){
+	const { breakedLineNodes } = rawIROfMarkdown.reduce( ( { breakedLineNodes, currentParent, lastWasAlsoAParagraph }, currentLineNode ) => {
+		
+		if( currentLineNode.adfType === 'heading'
+			|| currentLineNode.adfType === 'divider'
+			|| currentLineNode.adfType === 'codeBlock' ){
+			breakedLineNodes.push( currentLineNode )
+			return { breakedLineNodes }
+		}
+		
+		if( currentLineNode.adfType !== 'paragraph' ){
+			breakedLineNodes.push( currentLineNode )
+			return { breakedLineNodes, currentParent: currentLineNode }
+		}
+		
+		if( !lastWasAlsoAParagraph
+			&& /^(?:[\s]*)$/.test( currentLineNode.textToEmphasis ) ) {
+			//we're breaking into a new paragraph
+			return { breakedLineNodes, lastWasAlsoAParagraph: true }
+		}
+		
+		if( lastWasAlsoAParagraph
+			&& /^(?:[\s]*)$/.test( currentLineNode.textToEmphasis ) ) {
+			//we've double break, we add a paragraph
+			breakedLineNodes.push( currentLineNode )
+			return { breakedLineNodes }
+		}
+		
+		//this is a non-empty paragraph, if we are already filling up a paragraph, let's add the text inside
+		if( currentParent ){
+			const textToAdd = currentLineNode.textPosition >= currentParent.textPosition
+							  ? currentLineNode.textToEmphasis.slice( currentParent.textPosition )
+							  : currentLineNode.textToEmphasis
+			currentParent.textToEmphasis = currentParent.textToEmphasis + ( currentLineNode.textToEmphasis.charAt( 0 ) !== ' '
+																			? ' ' + textToAdd
+																			: textToAdd )
+			return { breakedLineNodes, currentParent }
+		}
+		
+		//this is a lone new paragraph, we add it to the list
+		breakedLineNodes.push( currentLineNode )
+		return { breakedLineNodes, currentParent: currentLineNode }
+		
+	}, { breakedLineNodes: [ ] } )
+	
+	return breakedLineNodes
+}
+
+
+/**
+ * Realign children nodes to orderedList and bulletList
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into collapsing
+ *
+ * @returns {IRElement[]}	an array of IRElement
+ */
+function accumulateLevelFromList( rawIROfMarkdown ){
+	const { accumulatedNodes } = rawIROfMarkdown.reduce( ( { accumulatedNodes, indexCurrentList }, currentLineNode ) => {
+		
+		if( currentLineNode.adfType !== 'heading'
+			&& currentLineNode.adfType !== 'divider'
+			&& currentLineNode.adfType !== 'orderedList'
+			&& currentLineNode.adfType !== 'bulletList'
+			&& indexCurrentList
+			&& currentLineNode.textPosition < accumulatedNodes[ indexCurrentList ].textPosition + 2 ){
+			currentLineNode.textPosition = accumulatedNodes[ indexCurrentList ].textPosition + 2
+		}
+		
+		accumulatedNodes.push( currentLineNode )
+		
+		if( currentLineNode.adfType === 'heading'
+			|| currentLineNode.adfType === 'divider' )
+			return { accumulatedNodes }
+		
+		if( currentLineNode.adfType === 'bulletList' || currentLineNode.adfType === 'orderedList' ){
+			return { accumulatedNodes, indexCurrentList: accumulatedNodes.length - 1 }
+		}
+		
+		return { accumulatedNodes, indexCurrentList }
+		
+	}, { accumulatedNodes: [ ] } )
+	
+	return accumulatedNodes
+}
+
+/**
+ * Build an array of all the different level (defined by the lists) we have to manage
+ *  and their corresponding textPosition
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into collapsing
+ *
+ * @returns {Number[]}		an array of the textPosition for each level
+ */
+function createLevelList( rawIROfMarkdown ){
+	return rawIROfMarkdown.reduce( ( currentLevelList, currentNode ) => {
+		if( currentNode.adfType !== 'orderedList'
+			&& currentNode.adfType !== 'bulletList' )
+			return currentLevelList
+		
+		return ( currentLevelList.includes( currentNode.textPosition + 2 ) || currentLevelList.includes( currentNode.textPosition + 3 ) )
+			   ? currentLevelList
+			   : currentNode.textPosition + 2 > ( currentLevelList[ currentLevelList.length - 1 ] + 1 )
+				 ? [ ...currentLevelList, currentNode.textPosition + 2 ]
+				 : currentLevelList
+	}, [ 0 ] )
+}
+
+
+/**
+ * Map all element to their level in an array of level
+ *
+ * @param rawIROfMarkdown	{Array} 	the array of IRElement to look into mapping
+ * @param levelsPosition	{Array} 	the list of level's textPosition to use
+ *
+ * @returns {IRTreeNode[]}		an array of IRTreeNode
+ */
+function mapIRToLevels( rawIROfMarkdown, levelsPosition ){
+	return levelsPosition.map( ( currentLevelPosition, currentIndex ) => {
+		return rawIROfMarkdown.filter( currentList => ( currentList.textPosition >= currentLevelPosition
+														 && ( currentIndex === levelsPosition.length - 1 //this is the last level
+															  || currentList.textPosition < levelsPosition[ currentIndex + 1 ] ) ) )
+							   .map( currentList => ( {
+								   indexOfList: rawIROfMarkdown.indexOf( currentList ),
+								   children: [],
+								   node: currentList } ) )
+	} )
+}
+
+/**
+ * Map all element to their level in an array of level
+ *
+ * @param levelsMap			{Array} 	the level array of array of IRElement
+ *
+ * @returns {IRTreeNode[]}				tree of IRElements and their children
+ */
+function buildTreeFromLevelMap( levelsMap ){
+	const treeOfNode = levelsMap.reduce( ( currentTree, currentArrayOfListIndexes, currentIndexInTheArrayOfListIndexes ) => {
+		const stepAtTree = currentArrayOfListIndexes.reduce( ( currentTreeValues, currentListValues ) => {
+			if( currentIndexInTheArrayOfListIndexes <= 0 )
+				return [ ...currentTreeValues, currentListValues ]
+			
+			const parentList = levelsMap[ currentIndexInTheArrayOfListIndexes - 1 ]
+			const lastParentWithIndexBelow = parentList.findIndex( currentParentListIndex => {
+				return currentParentListIndex.indexOfList > currentListValues.indexOfList
+			} )
+			const parentIndexToUse = lastParentWithIndexBelow === -1
+									 ? parentList.length - 1
+									 : lastParentWithIndexBelow === 0
+									   ? 0
+									   : lastParentWithIndexBelow - 1
+			if( parentIndexToUse < 0 )
+				throw 'Parent list of node is empty!'
+			
+			parentList[ parentIndexToUse ].children.push( currentListValues )
+			
+			return currentTreeValues
+		}, currentTree )
+		return stepAtTree
+	}, [] )
+	
+	return treeOfNode
+}
+
+module.exports = buildTreeFromMarkdown
+
+
+/***/ }),
+
 /***/ 198:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_28296__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_18896__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const decision_1 = __nested_webpack_require_28296__(135);
-const index_1 = __nested_webpack_require_28296__(492);
+const decision_1 = __nested_webpack_require_18896__(135);
+const index_1 = __nested_webpack_require_18896__(492);
 class DecisionList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -59314,12 +59029,12 @@ exports.DecisionList = DecisionList;
 /***/ }),
 
 /***/ 206:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_29081__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_19681__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_29081__(711);
+const mark_1 = __nested_webpack_require_19681__(711);
 class Link extends mark_1.Mark {
     constructor(href, title) {
         super('link');
@@ -59345,12 +59060,12 @@ exports.Link = Link;
 /***/ }),
 
 /***/ 223:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_29754__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_20354__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_29754__(492);
+const index_1 = __nested_webpack_require_20354__(492);
 class Rule extends index_1.TopLevelNode {
     toJSON() {
         return {
@@ -59364,16 +59079,16 @@ exports.Rule = Rule;
 /***/ }),
 
 /***/ 270:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_30134__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_20734__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_30134__(849);
-const heading_1 = __nested_webpack_require_30134__(366);
-const index_1 = __nested_webpack_require_30134__(492);
-const ordered_list_1 = __nested_webpack_require_30134__(982);
-const paragraph_1 = __nested_webpack_require_30134__(147);
+const bullet_list_1 = __nested_webpack_require_20734__(849);
+const heading_1 = __nested_webpack_require_20734__(366);
+const index_1 = __nested_webpack_require_20734__(492);
+const ordered_list_1 = __nested_webpack_require_20734__(982);
+const paragraph_1 = __nested_webpack_require_20734__(147);
 class Panel extends index_1.TopLevelNode {
     constructor(panelType) {
         super();
@@ -59404,16 +59119,16 @@ exports.Panel = Panel;
 /***/ }),
 
 /***/ 284:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_31283__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_21883__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const emoji_1 = __nested_webpack_require_31283__(526);
-const hard_break_1 = __nested_webpack_require_31283__(570);
-const index_1 = __nested_webpack_require_31283__(492);
-const mention_1 = __nested_webpack_require_31283__(962);
-const text_1 = __nested_webpack_require_31283__(171);
+const emoji_1 = __nested_webpack_require_21883__(526);
+const hard_break_1 = __nested_webpack_require_21883__(570);
+const index_1 = __nested_webpack_require_21883__(492);
+const mention_1 = __nested_webpack_require_21883__(962);
+const text_1 = __nested_webpack_require_21883__(171);
 class Task {
     constructor(localId, state) {
         this.localId = localId;
@@ -59469,7 +59184,7 @@ var TaskState;
 /***/ }),
 
 /***/ 286:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_33039__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_23639__) {
 
 "use strict";
 
@@ -59477,42 +59192,42 @@ function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
 Object.defineProperty(exports, "__esModule", { value: true });
-var document_1 = __nested_webpack_require_33039__(802);
+var document_1 = __nested_webpack_require_23639__(802);
 exports.Document = document_1.Document;
-var tag_1 = __nested_webpack_require_33039__(322);
+var tag_1 = __nested_webpack_require_23639__(322);
 exports.document = tag_1.document;
-__export(__nested_webpack_require_33039__(451));
-__export(__nested_webpack_require_33039__(893));
-__export(__nested_webpack_require_33039__(849));
-__export(__nested_webpack_require_33039__(561));
-__export(__nested_webpack_require_33039__(198));
-__export(__nested_webpack_require_33039__(135));
-__export(__nested_webpack_require_33039__(526));
-__export(__nested_webpack_require_33039__(570));
-__export(__nested_webpack_require_33039__(366));
-__export(__nested_webpack_require_33039__(566));
-__export(__nested_webpack_require_33039__(823));
-__export(__nested_webpack_require_33039__(371));
-__export(__nested_webpack_require_33039__(962));
-__export(__nested_webpack_require_33039__(982));
-__export(__nested_webpack_require_33039__(270));
-__export(__nested_webpack_require_33039__(147));
-__export(__nested_webpack_require_33039__(223));
-__export(__nested_webpack_require_33039__(976));
-__export(__nested_webpack_require_33039__(284));
-__export(__nested_webpack_require_33039__(171));
-__export(__nested_webpack_require_33039__(812));
+__export(__nested_webpack_require_23639__(451));
+__export(__nested_webpack_require_23639__(893));
+__export(__nested_webpack_require_23639__(849));
+__export(__nested_webpack_require_23639__(561));
+__export(__nested_webpack_require_23639__(198));
+__export(__nested_webpack_require_23639__(135));
+__export(__nested_webpack_require_23639__(526));
+__export(__nested_webpack_require_23639__(570));
+__export(__nested_webpack_require_23639__(366));
+__export(__nested_webpack_require_23639__(566));
+__export(__nested_webpack_require_23639__(823));
+__export(__nested_webpack_require_23639__(371));
+__export(__nested_webpack_require_23639__(962));
+__export(__nested_webpack_require_23639__(982));
+__export(__nested_webpack_require_23639__(270));
+__export(__nested_webpack_require_23639__(147));
+__export(__nested_webpack_require_23639__(223));
+__export(__nested_webpack_require_23639__(976));
+__export(__nested_webpack_require_23639__(284));
+__export(__nested_webpack_require_23639__(171));
+__export(__nested_webpack_require_23639__(812));
 //# sourceMappingURL=index.js.map
 
 /***/ }),
 
 /***/ 294:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_34248__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_24848__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_34248__(711);
+const mark_1 = __nested_webpack_require_24848__(711);
 class Underline extends mark_1.Mark {
     constructor() {
         super('underline');
@@ -59524,13 +59239,13 @@ exports.Underline = Underline;
 /***/ }),
 
 /***/ 322:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_34618__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_25218__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const document_1 = __nested_webpack_require_34618__(802);
-const index_1 = __nested_webpack_require_34618__(492);
+const document_1 = __nested_webpack_require_25218__(802);
+const index_1 = __nested_webpack_require_25218__(492);
 function document(strings, ...args) {
     const doc = new document_1.Document();
     const paragraph = doc.paragraph();
@@ -59561,14 +59276,280 @@ exports.document = document;
 
 /***/ }),
 
+/***/ 326:
+/***/ (function(module, __unusedexports, __nested_webpack_require_26320__) {
+
+/***********************************************************************************************************************
+ *
+ * Atlassian Document Format Handling
+ *
+ *  @author bruno.morel@b-yond.com
+ * ---------------------------------------------------------------------------------------------------------------------
+ *
+ * This transform a Intermediate Representation Tree (see markdownHandling) into the equivalent ADF nodes.
+ * It also remove non-compatible hierarchy that ADF doesn't support
+ *
+ **********************************************************************************************************************/
+const { marks, Heading, Text, Emoji, BulletList, OrderedList, ListItem, CodeBlock, BlockQuote, Paragraph, Rule }	= __nested_webpack_require_26320__( 286 )
+
+const attachTextToNodeSliceEmphasis = __nested_webpack_require_26320__( 804 )
+
+// /**
+//  * @typedef { import("./markdownParsing").IRElement } IRElement
+//  * @typedef { import("./markdownHandling").IRTreeNode } IRTreeNode
+//  */
+
+/**
+ * Browse the tree recursively to add each node to the ADF Document
+ * 	It also treat special cases between top-level node and generic ones
+ *
+ * @param currentParentNode					{Document}		ADF document to add to
+ * @param currentArrayOfNodesOfSameIndent	{IRTreeNode}
+ */
+function fillADFNodesWithMarkdown( currentParentNode, currentArrayOfNodesOfSameIndent ){
+	currentArrayOfNodesOfSameIndent.reduce( ( lastListNode, currentNode ) => {
+		const nodeOrListNode = lastListNode !== null
+							   && ( currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList' )
+							   && lastListNode.content.type === currentNode.node.adfType
+							   ? lastListNode
+							   : addTypeToNode( currentParentNode, currentNode.node.adfType, currentNode.node.typeParam )
+		
+		const nodeOrListItem = currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList'
+							   ? nodeOrListNode.content.add( new ListItem() )
+							   : nodeOrListNode
+		const nodeToAttachTextTo = currentNode.node.adfType === 'orderedList' || currentNode.node.adfType === 'bulletList' || currentNode.node.adfType === 'blockQuote'
+								   ? typeof currentNode.node.textToEmphasis !== 'undefined' || currentNode.children.length === 0
+									 ? nodeOrListItem.content.add( new Paragraph() )
+									 : nodeOrListItem
+								   : nodeOrListItem
+		
+		if( currentNode.node.adfType === 'divider' )
+			return lastListNode
+		
+		else if( currentNode.node.adfType !== 'codeBlock'
+				 && currentNode.node.textToEmphasis )
+			attachItemNode( nodeToAttachTextTo, currentNode.node.textToEmphasis )
+		
+		else if( currentNode.node.adfType !== 'codeBlock'
+				 && currentNode.node.textToEmphasis === '' )
+			attachItemNode( nodeToAttachTextTo, ' ' )
+		
+		else if( currentNode.node.adfType === 'codeBlock' )
+			attachTextToNodeRaw( nodeToAttachTextTo, currentNode.node.textToEmphasis )
+		
+		if( currentNode.children )
+			fillADFNodesWithMarkdown( nodeOrListItem, currentNode.children )
+		
+		return ( currentNode.node.adfType !== 'orderedList' && currentNode.node.adfType !== 'bulletList' )
+			   || ( !lastListNode || currentNode.node.adfType === lastListNode.content.type )
+			   ? nodeOrListNode
+			   : lastListNode
+	}, null )
+}
+
+/**
+ *  Adding a Top-Level ADF element
+ *
+ * @param adfNodeToAttachTo	{Node}		ADF node to attach this element to
+ * @param adfType			{String}	ADF Type of the element we want to attach
+ * @param typeParams		{String}	extra params for special top-level nodes
+ *
+ * @returns 				{Node}		the node added
+ */
+function addTypeToNode( adfNodeToAttachTo, adfType, typeParams ){
+	switch( adfType ) {
+		case "heading":
+			return adfNodeToAttachTo.content.add( new Heading( typeParams ) )
+		
+		case "divider":
+			return adfNodeToAttachTo.content.add( new Rule() )
+		
+		case "bulletList":
+			return adfNodeToAttachTo.content.add( new BulletList() )
+		
+		case "orderedList": {
+			const orderedListNode = new OrderedList( )
+			if( typeParams ) orderedListNode.attrs = { order: typeParams }
+			return adfNodeToAttachTo.content.add( orderedListNode )
+		}
+		
+		case "codeBlock":
+			return adfNodeToAttachTo.content.add( new CodeBlock( typeParams ) )
+		
+		case "blockQuote":
+			return adfNodeToAttachTo.content.add( new BlockQuote() )
+		
+		case "paragraph":
+			return adfNodeToAttachTo.content.add( new Paragraph() )
+		
+		default:
+			throw 'incompatible type'
+	}
+}
+
+/**
+ * Adding a non-top-level ADF node
+ *
+ * @param nodeToAttachTo		{Node}		ADF Node to attach to
+ * @param rawText				{String}	text content of the node to add
+ */
+function attachItemNode( nodeToAttachTo, rawText ) {
+	const slicedInline = sliceInLineCode( rawText )
+	
+	const { slicedInlineAndEmoji } = slicedInline.reduce( ( { slicedInlineAndEmoji }, currentSlice ) => {
+		if( !currentSlice.isMatching ){
+			const slicedEmoji = sliceEmoji( currentSlice.text )
+			
+			return { slicedInlineAndEmoji: slicedInlineAndEmoji.concat( slicedEmoji ) }
+		}
+		
+		slicedInlineAndEmoji.push( currentSlice )
+		return { slicedInlineAndEmoji }
+	}, { slicedInlineAndEmoji: [] } )
+	
+	const { slicedInlineAndEmojiAndLink } = slicedInlineAndEmoji.reduce( ( { slicedInlineAndEmojiAndLink }, currentSlice ) => {
+		if( !currentSlice.isMatching ){
+			const slicedLink = sliceLink( currentSlice.text )
+			
+			return { slicedInlineAndEmojiAndLink: slicedInlineAndEmojiAndLink.concat( slicedLink ) }
+		}
+		
+		slicedInlineAndEmojiAndLink.push( currentSlice )
+		return { slicedInlineAndEmojiAndLink }
+	}, { slicedInlineAndEmojiAndLink: [] } )
+	
+	for( const currentSlice of slicedInlineAndEmojiAndLink ) {
+		switch( currentSlice.type ){
+			case 'inline':
+				const inlineCodeNode = new Text( currentSlice.text, marks().code() )
+				nodeToAttachTo.content.add( inlineCodeNode )
+				break
+			
+			case 'emoji':
+				const emojiNode = new Emoji( {shortName: currentSlice.text } )
+				nodeToAttachTo.content.add( emojiNode )
+				break
+			
+			case 'link':
+				const linkNode = new Text( currentSlice.text,
+										   marks().link( currentSlice.optionalText1,
+														 currentSlice.optionalText2 ) )
+				nodeToAttachTo.content.add( linkNode )
+				break
+			
+			case 'image':
+				const imageNode = new Text( currentSlice.text,
+											marks().link( currentSlice.optionalText1,
+														  currentSlice.optionalText2 ) )
+				nodeToAttachTo.content.add( imageNode )
+				break
+			
+			default:
+				attachTextToNodeSliceEmphasis( nodeToAttachTo, currentSlice.text )
+			// const textNode = new Text( currentSlice.text, marksToUse )
+			// nodeToAttachTo.content.add( textNode )
+		}
+	}
+}
+
+/**
+ * Match text content with and ADF inline type
+ *
+ * @param rawText				{String}	the text content to try to match
+ *
+ * @returns 					{String[]}	the different slice matching an inline style
+ */
+function sliceInLineCode( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'inline', /(?<nonMatchBefore>[^`]*)(?:`(?<match>[^`]+)`)(?<nonMatchAfter>[^`]*)/g )
+}
+
+/**
+ * Match text content with and ADF emoji type
+ *
+ * @param rawText				{String}	the text content to try to match
+ *
+ * @returns 					{String[]}	the different slice matching an emoji style
+ */
+function sliceEmoji( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'emoji',/(?<nonMatchBefore>[^`]*)(?::(?<match>[^`\s]+):)(?<nonMatchAfter>[^`]*)/g )
+}
+
+/**
+ * Match text content with and ADF link type
+ *
+ * @param rawText				{String}	the text content to try to match
+ *
+ * @returns 					{String[]}	the different slice matching a link style
+ */
+function sliceLink( rawText ){
+	return sliceOneMatchFromRegexp( rawText, 'link',/(?<nonMatchBefore>[^`]*)(?:\[(?<match>[^\[\]]+)\]\((?<matchOptional>[^\(\)"]+)(?: "(?<matchOptional2>[^"]*)")?\))(?<nonMatchAfter>[^`]*)/g )
+}
+
+/**
+ * Match text content with and regular expression with one match
+ *
+ * @param rawText				{String}	the text content to try to match
+ * @param typeTag				{String}	the ADF Type to return if it matches
+ * @param regexpToSliceWith		{RegExp}	the regexp with a match group and a non-match group to use
+ *
+ * @returns 					{String[]}	the different slice matching the specified regexp
+ */
+function sliceOneMatchFromRegexp( rawText, typeTag, regexpToSliceWith ){
+	let slicesResult = [ ]
+	let snippet = null
+	let hasAtLeastOneExpression = false
+	
+	while( ( snippet = regexpToSliceWith.exec( rawText ) ) ) {
+		hasAtLeastOneExpression = true
+		if( snippet.groups.nonMatchBefore ){
+			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchBefore } )
+		}
+		
+		if( snippet.groups.match ){
+			slicesResult.push( {
+								   isMatching: 		true,
+								   type: 			typeTag,
+								   text: 			snippet.groups.match,
+								   optionalText1: 	snippet.groups.matchOptional,
+								   optionalText2: 	snippet.groups.matchOptional2
+							   } )
+		}
+		
+		if( snippet.groups.nonMatchAfter ){
+			slicesResult.push( { isMatching: false, text: snippet.groups.nonMatchAfter } )
+		}
+	}
+	
+	if( !hasAtLeastOneExpression )
+		slicesResult.push( { isMatching: false, text: rawText } )
+	
+	return slicesResult
+}
+
+/**
+ * Attach a raw simple text node to the parent
+ *
+ * @param nodeToAttachTo	{Node}		ADF node to attach to
+ * @param textToAttach		{String}	text to use for the Text node
+ */
+function attachTextToNodeRaw( nodeToAttachTo, textToAttach ){
+	const textNode = new Text( textToAttach )
+	nodeToAttachTo.content.add( textNode )
+}
+
+module.exports = fillADFNodesWithMarkdown
+
+
+/***/ }),
+
 /***/ 366:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_35720__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_35735__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_35720__(492);
-const text_1 = __nested_webpack_require_35720__(171);
+const index_1 = __nested_webpack_require_35735__(492);
+const text_1 = __nested_webpack_require_35735__(171);
 class Heading extends index_1.TopLevelNode {
     constructor(level) {
         super();
@@ -59628,12 +59609,12 @@ exports.Media = Media;
 /***/ }),
 
 /***/ 396:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_37330__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_37345__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_37330__(711);
+const mark_1 = __nested_webpack_require_37345__(711);
 class SubSup extends mark_1.Mark {
     constructor(variant) {
         super('subsup');
@@ -59654,12 +59635,12 @@ exports.SubSup = SubSup;
 /***/ }),
 
 /***/ 400:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_37872__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_37887__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_37872__(711);
+const mark_1 = __nested_webpack_require_37887__(711);
 class Em extends mark_1.Mark {
     constructor() {
         super('em');
@@ -59671,12 +59652,12 @@ exports.Em = Em;
 /***/ }),
 
 /***/ 451:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_38207__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_38222__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_38207__(492);
+const index_1 = __nested_webpack_require_38222__(492);
 class Action {
     title(title) {
         this.actionTitle = title;
@@ -59944,13 +59925,45 @@ exports.InlineNode = InlineNode;
 
 /***/ }),
 
+/***/ 503:
+/***/ (function(module, __unusedexports, __nested_webpack_require_44938__) {
+
+/***********************************************************************************************************************
+ *
+ * Take any markdown (Github focussed for now) and translate it into a JIRA/Confluence compatible ADF document
+ *
+ *  @author bruno.morel@b-yond.com
+ *
+ **********************************************************************************************************************/
+const { Document }	= __nested_webpack_require_44938__( 286 )
+
+
+const buildIRTreeFromMarkdown = __nested_webpack_require_44938__( 197 )
+const fillADFNodesWithMarkdown = __nested_webpack_require_44938__( 326 )
+
+function translateGITHUBMarkdownToADF( markdownText ){
+	
+	const textTree = buildIRTreeFromMarkdown( markdownText )
+	
+	const adfRoot = new Document()
+	if( textTree.length > 0 )
+		fillADFNodesWithMarkdown( adfRoot, textTree )
+	
+	return adfRoot
+}
+
+module.exports = translateGITHUBMarkdownToADF
+
+
+/***/ }),
+
 /***/ 526:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_44923__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_45885__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_44923__(492);
+const index_1 = __nested_webpack_require_45885__(492);
 function emoji(shortName, id, text) {
     return new Emoji({ shortName, id, text });
 }
@@ -59982,13 +59995,13 @@ exports.Emoji = Emoji;
 /***/ }),
 
 /***/ 561:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_45793__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_46755__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_45793__(492);
-const text_1 = __nested_webpack_require_45793__(171);
+const index_1 = __nested_webpack_require_46755__(492);
+const text_1 = __nested_webpack_require_46755__(171);
 class CodeBlock extends index_1.TopLevelNode {
     constructor(language) {
         super();
@@ -60015,15 +60028,15 @@ exports.CodeBlock = CodeBlock;
 /***/ }),
 
 /***/ 566:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_46619__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_47581__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const bullet_list_1 = __nested_webpack_require_46619__(849);
-const index_1 = __nested_webpack_require_46619__(492);
-const ordered_list_1 = __nested_webpack_require_46619__(982);
-const paragraph_1 = __nested_webpack_require_46619__(147);
+const bullet_list_1 = __nested_webpack_require_47581__(849);
+const index_1 = __nested_webpack_require_47581__(492);
+const ordered_list_1 = __nested_webpack_require_47581__(982);
+const paragraph_1 = __nested_webpack_require_47581__(147);
 class ListItem {
     constructor() {
         this.content = new index_1.ContentNode('listItem');
@@ -60047,12 +60060,12 @@ exports.ListItem = ListItem;
 /***/ }),
 
 /***/ 570:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_47470__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_48432__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_47470__(492);
+const index_1 = __nested_webpack_require_48432__(492);
 function hardBreak() {
     return new HardBreak();
 }
@@ -60072,13 +60085,220 @@ exports.HardBreak = HardBreak;
 
 /***/ }),
 
+/***/ 572:
+/***/ (function(module) {
+
+/**********************************************************************************************************************
+ *
+ *  Markdown Parser
+ *
+ *  @author bruno.morel@b-yond.com
+ *---------------------------------------------------------------------------------------------------------------------
+ *
+ * This translate all markdown to an intermediate representation composed as an array with
+ *  each item containing and object with the follow properties:
+ *      adfType : 		the ADF type of the line (heading, paragraph, orderedList, ...
+ *      textToEmphasis: the actuel text (if any) attached to the element
+ *      typeParam:		any extra parameter for special types (language for codeBlock)
+ *      nodeAttached: 	element to manage the special case of a codeBlock attached to a list
+ *      textPosition: 	the actual start position of the text (used later for level identication)
+ *
+ **********************************************************************************************************************/
+
+/**
+ * @typedef {Object}  IRElement
+ * @property {number} 		adfType 		- ADF type of the expression
+ * @property {number} 		textPosition 	- the actual start of the text (adfType dependent)
+ * @property {string} 		textToEmphasis 	- actual text of the element (adfType dependent)
+ * @property {string} 		typeParam 		- extra parameters adfType dependent
+ * @property {IRElement} 	nodeAttached 	- an attached code block to a list
+ */
+
+/**
+ * Parse markdown into an Intermediate representation
+ *
+ * @param markdownLineTextWithTabs an array of markdown expression to process
+ * @returns {IRElement}		an intermediate representation of the markdown element
+ */
+function parseMarkdownLinetoIR( markdownLineTextWithTabs ){
+	//to simplify tab management we replace them with spaces
+	const markdownLine = markdownLineTextWithTabs.replace( /\t/g, '    ' )
+	
+	//we try to match each line to match with a markdown expression
+	// or we push an empty paragraph
+	
+	const headerNode = matchHeader( markdownLine )
+	if( headerNode ) return headerNode
+	
+	const divider = matchDivider( markdownLine )
+	if( divider ) return divider
+	
+	const listNode = matchList( markdownLine )
+	if( listNode ) return listNode
+	
+	const blockQuoteNode = matchBlockQuote( markdownLine )
+	if( blockQuoteNode ) return blockQuoteNode
+	
+	const codeBlockNode = matchCodeBlock( markdownLine )
+	if( codeBlockNode ) return codeBlockNode
+	
+	const paragraphNode = matchParagraph( markdownLine )
+	if( paragraphNode ) return paragraphNode
+	
+	//this is a line break then
+	return { 	adfType : 		"paragraph",
+		textToEmphasis: "",
+		textPosition: 	markdownLine.length }
+}
+
+/**
+ * Matching of the markdown header
+ *
+ * @param lineToMatch actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchHeader( lineToMatch ){
+	const headerType = lineToMatch.match( /^(?<headerNumber>[#]{1,6}) (?<headerText>.*)$/i )
+	if( headerType
+		&& headerType.groups
+		&& headerType.groups.headerNumber
+		&& headerType.groups.headerText ){
+		return { 	adfType : 		"heading",//adfRoot.heading( headerType.groups.headerNumber.length ),
+			textToEmphasis: headerType.groups.headerText,
+			typeParam:		headerType.groups.headerNumber.length,
+			textPosition: 	0
+		}
+	}
+	
+	return null
+}
+
+/**
+ * Matching of a markdown list
+ *
+ * @param lineToMatch actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchList( lineToMatch ){
+	const list = lineToMatch.match( /^(?:[\s])*(?:[*\-+] |(?<orderedNumber>[0-9]+)[.)] )+(?<listText>.*)$/i )
+	if( list
+		&& list.groups
+		&& list.groups.listText ){
+		// adfDescription.bulletList( )
+		// 			  .textItem(  )
+		const textIsCodeBlock = matchCodeBlock( list.groups.listText )
+		if( textIsCodeBlock )
+			textIsCodeBlock.textPosition = lineToMatch.indexOf( list.groups.listText )
+		
+		return { 	adfType	: 		list.groups.orderedNumber
+										? "orderedList"
+										: "bulletList",
+			typeParam:		list.groups.orderedNumber,
+			textToEmphasis: textIsCodeBlock ? '': list.groups.listText,
+			textPosition: 	lineToMatch.indexOf( list.groups.listText ) - 2,
+			nodeAttached: 	textIsCodeBlock
+		}
+	}
+	
+	return null
+}
+
+/**
+ * Match a markdown code block
+ *
+ * @param lineToMatch 	actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchCodeBlock( lineToMatch ){
+	const codeBlock = lineToMatch.match( /^(?:[\s]*```)(?<Language>[^\s]*)$/i )
+	if( codeBlock
+		&& codeBlock.groups ){
+		
+		return { 	adfType: 		"codeBlock",
+			typeParam:		codeBlock.groups.Language,
+			textPosition: 	lineToMatch.indexOf( '```' ),
+			textToEmphasis: '' }
+	}
+	
+	return null
+}
+
+/**
+ * Match a markdown blockquote
+ *
+ * @param lineToMatch 	actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchBlockQuote( lineToMatch ){
+	const blockquote = lineToMatch.match( /^(?:[\s])*> (?<quoteText>.*)$/i )
+	if( blockquote
+		&& blockquote.groups
+		&& blockquote.groups.quoteText ){
+		
+		return { 	adfType : 		"blockQuote",
+			textToEmphasis: blockquote.groups.quoteText,
+			textPosition: 	lineToMatch.indexOf( '> ' ) }
+	}
+	
+	return null
+}
+
+/**
+ * Match a markdown paragraph
+ *
+ * @param lineToMatch 	actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchParagraph( lineToMatch ){
+	const paragraph = lineToMatch.match( /^(?:[\s]*)(?<paragraphText>[^\n]+)$/ )
+	if( paragraph
+		&& paragraph.groups
+		&& paragraph.groups.paragraphText ){
+		return { 	adfType : 		"paragraph",
+			textToEmphasis: paragraph.groups.paragraphText,
+			textPosition: 	!paragraph.groups.paragraphText.match( /^(?:[\s]*)$/ )
+							 ? lineToMatch.indexOf( paragraph.groups.paragraphText )
+							 : lineToMatch.length }
+	}
+	
+	return null
+}
+
+/**
+ * Match a markdown divider
+ *
+ * @param lineToMatch 	actual expression to match
+ *
+ * @returns {IRElement} | null if the expression doesn't match
+ */
+function matchDivider( lineToMatch ){
+	const divider = lineToMatch.match( /^(\s*-{3,}\s*|\s*\*{3,}\s*|\s*_{3,}\s*)$/ )
+	if( divider ){
+		return { 	adfType : 		"divider",
+			textToEmphasis: '',
+			textPosition: 	0 }
+	}
+	
+	return null
+}
+
+module.exports = parseMarkdownLinetoIR
+
+
+/***/ }),
+
 /***/ 601:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_48021__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_55272__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_48021__(711);
+const mark_1 = __nested_webpack_require_55272__(711);
 class Code extends mark_1.Mark {
     constructor() {
         super('code');
@@ -60090,12 +60310,12 @@ exports.Code = Code;
 /***/ }),
 
 /***/ 620:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_48366__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_55617__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_48366__(711);
+const mark_1 = __nested_webpack_require_55617__(711);
 class Action extends mark_1.Mark {
     constructor(title, target, actionParameters) {
         super('action');
@@ -60144,24 +60364,24 @@ exports.Mark = Mark;
 /***/ }),
 
 /***/ 802:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_49542__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_56793__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const nodes_1 = __nested_webpack_require_49542__(492);
-const application_card_1 = __nested_webpack_require_49542__(451);
-const block_quote_1 = __nested_webpack_require_49542__(893);
-const bullet_list_1 = __nested_webpack_require_49542__(849);
-const code_block_1 = __nested_webpack_require_49542__(561);
-const decision_list_1 = __nested_webpack_require_49542__(198);
-const heading_1 = __nested_webpack_require_49542__(366);
-const media_group_1 = __nested_webpack_require_49542__(823);
-const ordered_list_1 = __nested_webpack_require_49542__(982);
-const panel_1 = __nested_webpack_require_49542__(270);
-const paragraph_1 = __nested_webpack_require_49542__(147);
-const rule_1 = __nested_webpack_require_49542__(223);
-const task_list_1 = __nested_webpack_require_49542__(976);
+const nodes_1 = __nested_webpack_require_56793__(492);
+const application_card_1 = __nested_webpack_require_56793__(451);
+const block_quote_1 = __nested_webpack_require_56793__(893);
+const bullet_list_1 = __nested_webpack_require_56793__(849);
+const code_block_1 = __nested_webpack_require_56793__(561);
+const decision_list_1 = __nested_webpack_require_56793__(198);
+const heading_1 = __nested_webpack_require_56793__(366);
+const media_group_1 = __nested_webpack_require_56793__(823);
+const ordered_list_1 = __nested_webpack_require_56793__(982);
+const panel_1 = __nested_webpack_require_56793__(270);
+const paragraph_1 = __nested_webpack_require_56793__(147);
+const rule_1 = __nested_webpack_require_56793__(223);
+const task_list_1 = __nested_webpack_require_56793__(976);
 class Document {
     constructor(attrs = { version: 1 }) {
         this.attrs = attrs;
@@ -60219,21 +60439,140 @@ exports.Document = Document;
 
 /***/ }),
 
+/***/ 804:
+/***/ (function(module, __unusedexports, __nested_webpack_require_59205__) {
+
+/***********************************************************************************************************************
+ *
+ * Atlassian Document Format parsing of Emphasis
+ *
+ *  @author bruno.morel@b-yond.com
+ * ---------------------------------------------------------------------------------------------------------------------
+ *
+ * This transform a text with emphasis mark (*, _ or `) into an ADF expanded Paragraph
+ *
+ **********************************************************************************************************************/
+const { marks, Text }	= __nested_webpack_require_59205__( 286 )
+
+
+/**
+ * Parse a string character per character to find emphasis patterns
+ *  This is a very "manual" way to do it, but it provides the most efficient result
+ * @param parentNode			{Node}		ADF Node to attach the suite of Text node to
+ * @param textToEmphasis		{String}	text to parse for emphasis parsing
+ */
+function attachTextToNodeSliceEmphasis( parentNode, textToEmphasis ){
+	const lineUnderscored = textToEmphasis.replace( /\*/g, '_' )
+	let currentDecorationLevel = 0
+	//see convertDecorationLevelToMark
+	// 0 => no decoration
+	// 1 => italic
+	// 2 => bold
+	// 3 => bold and italic
+	
+	let potentialUnderscorePair = false
+	let strikedThrough			= false
+	let expressionBuffer		= ''
+	for( const currentCharacterIndex in lineUnderscored ){
+		
+		if( lineUnderscored[ currentCharacterIndex ] !== '_' ){
+			expressionBuffer += lineUnderscored[ currentCharacterIndex ]
+			
+			if( potentialUnderscorePair ){
+				currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 2
+										 ? currentDecorationLevel + 1
+										 : currentDecorationLevel - 1
+				potentialUnderscorePair = false
+			}
+		}
+		
+		if( currentCharacterIndex > 0
+			&& lineUnderscored[ currentCharacterIndex ] === '~'
+			&& lineUnderscored[ currentCharacterIndex - 1 ] === '~' ){
+			const textNode = new Text( expressionBuffer.slice( 0, expressionBuffer.length - 2 ),
+									   convertDecorationLevelToMark( currentDecorationLevel, strikedThrough ) )
+			parentNode.content.add( textNode )
+			
+			expressionBuffer = ''
+			strikedThrough = !strikedThrough
+		}
+		
+		
+		if( lineUnderscored[ currentCharacterIndex ] === '_' ){
+			let decorationToUse = convertDecorationLevelToMark( currentDecorationLevel, strikedThrough )
+			
+			if( expressionBuffer !== '' ){
+				const textNode = new Text( expressionBuffer, decorationToUse )
+				parentNode.content.add( textNode )
+				// textWithInline( parentNode, expressionBuffer, decorationToUse )
+			}
+			else {
+				if( potentialUnderscorePair )
+					currentDecorationLevel = currentDecorationLevel === 0 || currentDecorationLevel === 1
+											 ? currentDecorationLevel + 2
+											 : currentDecorationLevel - 2
+			}
+			
+			potentialUnderscorePair = !potentialUnderscorePair
+			expressionBuffer = ''
+		}
+	}
+	
+	if( expressionBuffer !== '' ){
+		const textNode = new Text( expressionBuffer, convertDecorationLevelToMark( currentDecorationLevel, strikedThrough ) )
+		parentNode.content.add( textNode )
+	}
+}
+
+/**
+ * Convert a "decoration level" (bit swap) to an actual ADF Mark for the text
+ *
+ * @param decorationLevelToConvert	{Number}		decoration level follow the convention:
+ * 														0 => no decoration
+ * 														1 => italic
+ * 														2 => bold
+ * 														3 => bold and italic
+ * @param addStrikethrough			{Boolean}		is strikethrough active?
+ */
+function convertDecorationLevelToMark( decorationLevelToConvert, addStrikethrough ){
+	if( addStrikethrough )
+		return decorationLevelToConvert === 1
+			   ? marks().strike().em()
+			   : decorationLevelToConvert === 2
+				 ? marks().strike().strong()
+				 : decorationLevelToConvert === 3
+				   ? marks().strike().strong().em()
+				   : marks().strike()
+	
+	return decorationLevelToConvert === 1
+		   ? marks().em()
+		   : decorationLevelToConvert === 2
+			 ? marks().strong()
+			 : decorationLevelToConvert === 3
+			   ? marks().strong().em()
+			   : null
+}
+
+module.exports = attachTextToNodeSliceEmphasis
+
+
+/***/ }),
+
 /***/ 812:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_51954__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_63305__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const action_1 = __nested_webpack_require_51954__(620);
-const code_1 = __nested_webpack_require_51954__(601);
-const em_1 = __nested_webpack_require_51954__(400);
-const link_1 = __nested_webpack_require_51954__(206);
-const strike_1 = __nested_webpack_require_51954__(103);
-const strong_1 = __nested_webpack_require_51954__(192);
-const subsup_1 = __nested_webpack_require_51954__(396);
-const text_color_1 = __nested_webpack_require_51954__(936);
-const underline_1 = __nested_webpack_require_51954__(294);
+const action_1 = __nested_webpack_require_63305__(620);
+const code_1 = __nested_webpack_require_63305__(601);
+const em_1 = __nested_webpack_require_63305__(400);
+const link_1 = __nested_webpack_require_63305__(206);
+const strike_1 = __nested_webpack_require_63305__(103);
+const strong_1 = __nested_webpack_require_63305__(192);
+const subsup_1 = __nested_webpack_require_63305__(396);
+const text_color_1 = __nested_webpack_require_63305__(936);
+const underline_1 = __nested_webpack_require_63305__(294);
 function marks() {
     return new Marks();
 }
@@ -60293,13 +60632,13 @@ exports.Marks = Marks;
 /***/ }),
 
 /***/ 823:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_53919__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_65270__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_53919__(492);
-const media_1 = __nested_webpack_require_53919__(371);
+const index_1 = __nested_webpack_require_65270__(492);
+const media_1 = __nested_webpack_require_65270__(371);
 class MediaGroup extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60327,13 +60666,13 @@ exports.MediaGroup = MediaGroup;
 /***/ }),
 
 /***/ 849:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_54832__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_66183__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_54832__(492);
-const list_item_1 = __nested_webpack_require_54832__(566);
+const index_1 = __nested_webpack_require_66183__(492);
+const list_item_1 = __nested_webpack_require_66183__(566);
 class BulletList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60360,13 +60699,13 @@ exports.BulletList = BulletList;
 /***/ }),
 
 /***/ 893:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_55689__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_67040__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_55689__(492);
-const paragraph_1 = __nested_webpack_require_55689__(147);
+const index_1 = __nested_webpack_require_67040__(492);
+const paragraph_1 = __nested_webpack_require_67040__(147);
 class BlockQuote extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
@@ -60385,12 +60724,12 @@ exports.BlockQuote = BlockQuote;
 /***/ }),
 
 /***/ 936:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_56328__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_67679__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const mark_1 = __nested_webpack_require_56328__(711);
+const mark_1 = __nested_webpack_require_67679__(711);
 const colorPattern = /^#[0-9a-f]{6}$/;
 class TextColor extends mark_1.Mark {
     constructor(color) {
@@ -60415,12 +60754,12 @@ exports.TextColor = TextColor;
 /***/ }),
 
 /***/ 962:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_57046__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_68397__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_57046__(492);
+const index_1 = __nested_webpack_require_68397__(492);
 function mention(id, text) {
     return new Mention(id, text);
 }
@@ -60447,13 +60786,13 @@ exports.Mention = Mention;
 /***/ }),
 
 /***/ 976:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_57727__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_69078__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const task_1 = __nested_webpack_require_57727__(284);
-const index_1 = __nested_webpack_require_57727__(492);
+const task_1 = __nested_webpack_require_69078__(284);
+const index_1 = __nested_webpack_require_69078__(492);
 class TaskList extends index_1.TopLevelNode {
     constructor(localId) {
         super();
@@ -60475,13 +60814,13 @@ exports.TaskList = TaskList;
 /***/ }),
 
 /***/ 982:
-/***/ (function(__unusedmodule, exports, __nested_webpack_require_58476__) {
+/***/ (function(__unusedmodule, exports, __nested_webpack_require_69827__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-const index_1 = __nested_webpack_require_58476__(492);
-const list_item_1 = __nested_webpack_require_58476__(566);
+const index_1 = __nested_webpack_require_69827__(492);
+const list_item_1 = __nested_webpack_require_69827__(566);
 class OrderedList extends index_1.TopLevelNode {
     constructor() {
         super(...arguments);
