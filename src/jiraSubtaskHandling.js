@@ -7,7 +7,7 @@ function sliceGHInput( rawText ) {
 	let currentParameters = rawText
 	let snippet           = null
 	
-	while( ( snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-]+)/g.exec( currentParameters ) ) ) {
+	while( ( snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-\s]+)/g.exec( currentParameters ) ) ) {
 		if( snippet.groups.paramValue ) {
 			slicesResult.push( snippet.groups.paramValue )
 			currentParameters = currentParameters.replace( snippet.groups.paramValue, '' )
