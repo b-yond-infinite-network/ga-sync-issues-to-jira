@@ -1,20 +1,6 @@
 const core   = require( '@actions/core' )
 const github = require( '@actions/github' )
-
-function sliceGHInput( rawText ) {
-    let slicesResult      = []
-    let currentParameters = rawText
-    let snippet           = null
-    
-    while( ( snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-\s]+)/g.exec( currentParameters ) ) ) {
-        if( snippet.groups.paramValue ) {
-            slicesResult.push( snippet.groups.paramValue )
-            currentParameters = currentParameters.replace( snippet.groups.paramValue, '' )
-        }
-    }
-    
-    return slicesResult
-}
+const sliceInput = require ('./utils')
 
 async function handleIssues( useSubtaskMode, DEBUG ) {
     const actionPossible   = [ "opened",
@@ -94,12 +80,12 @@ async function handleIssues( useSubtaskMode, DEBUG ) {
         }
         
         
-        const arrProjectKeys = sliceGHInput( jiraProjectKey )
+        const arrProjectKeys = sliceInput( jiraProjectKey )
         if( arrProjectKeys.length === 0 ) {
             arrProjectKeys.push( jiraProjectKey )
         }
         
-        const arrIssueTypes = sliceGHInput( jiraIssueTypeName )
+        const arrIssueTypes = sliceInput( jiraIssueTypeName )
         if( arrIssueTypes.length === 0 ) {
             arrIssueTypes.push( jiraIssueTypeName )
         }

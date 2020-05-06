@@ -90,7 +90,8 @@
   },
   "jest": {
     "testMatch": [
-      "**/*.steps.js"
+      "**/*.steps.js",
+      "**/*.test.js"
     ],
     "coveragePathIgnorePatterns": [
       "/node_modules/",
