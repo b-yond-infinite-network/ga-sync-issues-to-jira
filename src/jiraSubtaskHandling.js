@@ -1,21 +1,7 @@
 const core       = require( '@actions/core' )
 const JiraClient = require( 'jira-connector' )
+const sliceInput = require ('./utils')
 let DEBUG        = () => { }
-
-function sliceGHInput( rawText ) {
-	let slicesResult      = []
-	let currentParameters = rawText
-	let snippet           = null
-	
-	while( ( snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-\s]+)/g.exec( currentParameters ) ) ) {
-		if( snippet.groups.paramValue ) {
-			slicesResult.push( snippet.groups.paramValue )
-			currentParameters = currentParameters.replace( snippet.groups.paramValue, '' )
-		}
-	}
-	
-	return slicesResult
-}
 
 async function handleSubtask( issueChanges, useSubtaskMode, fnDEBUG ) {
 	//ISSUE CHANGE will be:
@@ -55,7 +41,7 @@ async function handleSubtask( issueChanges, useSubtaskMode, fnDEBUG ) {
 		//PROJECT_KEY HANDLING
 		// we allow list of keys, so we have to slice the input, then ensure that those project
 		// exist in JIRA, then ensure that the Issue Type listed for them exists too
-		const arrayProjectKeys = sliceGHInput( jiraProjectKey )
+		const arrayProjectKeys = sliceInput( jiraProjectKey )
 		if( arrayProjectKeys.length === 0 ) {
 			arrayProjectKeys.push( jiraProjectKey )
 		}
@@ -73,7 +59,7 @@ async function handleSubtask( issueChanges, useSubtaskMode, fnDEBUG ) {
 		}
 		
 		
-		const arrayIssueTypes = sliceGHInput( jiraIssueTypeName )
+		const arrayIssueTypes = sliceInput( jiraIssueTypeName )
 		if( arrayIssueTypes.length === 0 ) {
 			arrayIssueTypes.push( jiraIssueTypeName )
 		}
