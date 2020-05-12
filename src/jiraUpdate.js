@@ -2,14 +2,14 @@ const core           = require( '@actions/core' )
 const JiraClient     = require( 'jira-connector' )
 const translateToADF = require( 'md-to-adf' )
 
-async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
+async function handleJIRAUpdate( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ) {
 	try {
 		const jiraSession = new JiraClient( {
 												host:       core.getInput( 'JIRA_BASEURL' ),
 												basic_auth: {
 													email:     core.getInput( 'JIRA_USEREMAIL' ),
 													api_token: core.getInput( 'JIRA_APITOKEN' ),
-												}
+												},
 											} )
 		
 		const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
@@ -107,21 +107,55 @@ async function jiraDeleteIssue( jiraSession, subtaskOrIssueToUpdate ) {
 	await jiraSession.issue.deleteIssue( { issueKey: subtaskOrIssueToUpdate.key } )
 }
 
-function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueToChange ){
+function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueToChange ) {
 	//TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
 	// we only sync summary and description for now
-	const changes = {}
+	const epicMode = core.getInput( 'EPIC_MODE' ) == 'true'
+	const changes  = {}
 	
 	if( issueChangeTriggered.details.title
 		&& subtaskOrIssueToChange.fields
-		&& subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
+		&& subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title ) {
 		changes.summary = issueChangeTriggered.details.title
+	}
 	
 	if( issueChangeTriggered.details.body
 		&& subtaskOrIssueToChange.fields
 		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body ) {
 		changes.description = translateToADF( issueChangeTriggered.details.body )
 	}
+	
+	if( epicMode && subtaskOrIssueToChange.fieldIDEpic && subtaskOrIssueToChange.keyEpicLinked ) {
+		changes[ subtaskOrIssueToChange.fieldIDEpic ] = subtaskOrIssueToChange.keyEpicLinked
+	}
+	
+	// if we want to sync the resolution status
+	// if( reporterOn && subtaskOrIssueToChange.fields.resolution && subtaskOrIssueToChange.fields.resolution.id or
+	// name ){ }
+	
+	
+	// if we want to sync the workflow status
+	// if( reporterOn && subtaskOrIssueToChange.fields.status && subtaskOrIssueToChange.fields.status.id or name ){
+	//}
+	
+	// if we want to sync the assignee
+	// if( reporterOn && subtaskOrIssueToChange.fields.assignee && subtaskOrIssueToChange.fields.assignee.emailAddress
+	// ){ }
+	
+	// if we want to sync the creator
+	// if( reporterOn && subtaskOrIssueToChange.fields.creator && subtaskOrIssueToChange.fields.creator.emailAddress ){
+	//}
+	
+	// if we want to sync the reporter
+	// if( reporterOn && subtaskOrIssueToChange.fields.reporter && subtaskOrIssueToChange.fields.reporter.emailAddress
+	// ){ }
+	
+	// if we want to sync the comments
+	// if( reporterOn && subtaskOrIssueToChange.fields.comment && subtaskOrIssueToChange.fields.comment.comments &&
+	// 		subtaskOrIssueToChange.fields.comment.comments[ X ] .author
+	// 				&& subtaskOrIssueToChange.fields.comment.comments[ X ] .author.emailAddress <= email not present
+	// in GH, login is only accessible subtaskOrIssueToChange.fields.comment.comments[ X ] .body <= ADF of GH
+	// body	){ //what to do with the updateAuthor? }
 	
 	return changes
 }
@@ -173,6 +207,5 @@ async function jiraListStateToTransitionTo( jiraSession, subtaskOrIssueToUpdate,
 	return null
 }
 
-
-module.exports 	= handleSync
+module.exports.handleJIRAUpdate = handleJIRAUpdate
 

@@ -27,6 +27,7 @@
         "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TES-2"
       }
     ],
+    "repository_url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira",
     "labels_url": "https://fakegithub/repo/issues/1/labels{/name}",
     "locked": false,
     "milestone": null,
@@ -37,5 +38,11 @@
     "title": "My new title",
     "updated_at": "2019-11-01T22:01:10Z",
     "url": "https://fakegithub/repo/issues/1"
+  },
+  "repository": {
+    "name": "ga-sync-issues-to-jira",
+    "owner": {
+      "login": "b-yond-infinite-network"
+    }
   }
 }

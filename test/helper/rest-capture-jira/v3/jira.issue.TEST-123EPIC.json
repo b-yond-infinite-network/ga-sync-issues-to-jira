@@ -1,0 +1,94 @@
+{
+  "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
+  "id": "78901",
+  "self": "https://fakejira/rest/api/2/issue/78901",
+  "key": "TEST-123EPIC",
+  "fields": {
+    "summary": "An JIRA Epic synched with GITHUB",
+    "issuetype": {
+      "self": "https://fakejira/rest/api/2/issuetype/10547",
+      "id": "10547",
+      "description": "A small, distinct piece of work.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
+      "name": "Epic",
+      "subtask": false,
+      "avatarId": 10318,
+      "entityId": "8a1f4add-3a58-4efd-a7fd-8e0a5d31bf77"
+    },
+    "attachment": [],
+    "subtasks": [
+      {
+        "id": "47223",
+        "key": "TEST-456",
+        "self": "https://fakejira/rest/api/2/issue/47223",
+        "fields": {
+          "summary": "A JIRA subtask",
+          "description": "That would be good to have a description",
+          "status": {
+            "self": "https://fakejira/rest/api/2/status/10000",
+            "description": "That would be good to have a description\n\nWith some *formatting*\n\n+_And other stuff_+",
+            "iconUrl": "https://fakejira/",
+            "name": "To Do",
+            "id": "10000",
+            "statusCategory": {
+              "self": "https://fakejira/rest/api/2/statuscategory/2",
+              "id": 2,
+              "key": "new",
+              "colorName": "blue-gray",
+              "name": "To Do"
+            }
+          },
+          "priority": {
+            "self": "https://fakejira/rest/api/2/priority/10001",
+            "iconUrl": "https://fakejira/images/icons/priorities/high.svg",
+            "name": "Major",
+            "id": "10001"
+          },
+          "issuetype": {
+            "self": "https://fakejira/rest/api/2/issuetype/10003",
+            "id": "10003",
+            "description": "A small piece of work that's part of a larger task.",
+            "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10316&avatarType=issuetype",
+            "name": "Sub-task",
+            "subtask": true,
+            "avatarId": 10316
+          }
+        }
+      }
+    ],
+    "duedate": null,
+    "description": "That would be good to have a description\n\nWith some *formatting*\n\n+_And other stuff_+",
+    "votes": {
+      "self": "https://fakejira/rest/api/2/issue/TEST-2/votes",
+      "votes": 0,
+      "hasVoted": false
+    },
+    "comment": {
+      "comments": [],
+      "maxResults": 0,
+      "total": 0,
+      "startAt": 0
+    },
+    "priority": {
+      "self": "https://fakejira/rest/api/2/priority/10001",
+      "iconUrl": "https://fakejira/images/icons/priorities/high.svg",
+      "name": "Major",
+      "id": "10001"
+    },
+    "labels": [],
+    "status": {
+      "self": "https://fakejira/rest/api/2/status/11002",
+      "description": "",
+      "iconUrl": "https://fakejira/",
+      "name": "To Do",
+      "id": "11002",
+      "statusCategory": {
+        "self": "https://fakejira/rest/api/2/statuscategory/2",
+        "id": 2,
+        "key": "new",
+        "colorName": "blue-gray",
+        "name": "To Do"
+      }
+    }
+  }
+}

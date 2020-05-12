@@ -1,0 +1,25 @@
+{
+  "method": "GET",
+  "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TEST-555",
+  "headers": {
+    "accept": "application/vnd.github.v3+json",
+    "user-agent": "octokit.js/16.43.1 Node.js/14.1.0 (macOS Catalina; x64)",
+    "authorization": "token [REDACTED]"
+  },
+  "request": {
+    "validate": {
+      "name": {
+        "required": true,
+        "type": "string"
+      },
+      "owner": {
+        "required": true,
+        "type": "string"
+      },
+      "repo": {
+        "required": true,
+        "type": "string"
+      }
+    }
+  }
+}

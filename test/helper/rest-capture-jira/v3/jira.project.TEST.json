@@ -25,6 +25,15 @@
       "id": "23456",
       "description": "A small, distinct piece of work.",
       "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
+      "name": "Story",
+      "subtask": false,
+      "avatarId": 10318
+    },
+    {
+      "self": "https://fakejira/rest/api/2/issuetype/23456",
+      "id": "23456",
+      "description": "A small, distinct piece of work.",
+      "iconUrl": "https://fakejira/secure/viewavatar?size=medium&avatarId=10318&avatarType=issuetype",
       "name": "Task",
       "subtask": false,
       "avatarId": 10318

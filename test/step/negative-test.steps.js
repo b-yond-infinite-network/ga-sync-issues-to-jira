@@ -2,10 +2,11 @@ const merge 		= require( 'deepmerge' )
 
 const { Before, After, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
 
-const { mockGHActionsIssue, mockNonGHActionsIssue }     = require( '../helper/mockGH-actions' )
-let actionProjectName   = 'BLA'
-let actionIssueType     = 'Subtask'
-let overloadValues      = null
+const { mockGHActionsIssue, mockGHActionsIssueWithModes, mockGHAPI, mockNonGHActionsIssue } = require(
+    '../helper/mockGH-actions' )
+let actionProjectName                                                                       = 'BLA'
+let actionIssueType                                                                         = 'Subtask'
+let overloadValues                                                                          = null
 
 
 const { mockJIRACalls, unmockJIRACalls }     = require( '../helper/mockJIRA-api' )
@@ -92,15 +93,33 @@ And( /the issue in GITHUB has the same title, body and comments than issue '([^'
 } )
 
 When( /^the action is not triggered from a github action$/, function () {
-    mockNonGHActionsIssue( )
+    mockNonGHActionsIssue()
 } )
 
-When( /^the action is triggered on an opened issue$/, async (  ) => {
-    await mockGHActionsIssue( 'opened', actionProjectName, actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, overloadValues )
-})
+When( /^the action is triggered on an opened issue$/, async () => {
+    
+    mockGHAPI()
+    
+    await mockGHActionsIssue( 'opened',
+                              actionProjectName,
+                              actionIssueType,
+                              jiraBaseURL,
+                              jiraUserEmail,
+                              jiraApiToken,
+                              overloadValues )
+} )
+
+When( /^the action is triggered with DEBUG_MODE ON$/, async () => {
+    
+    await mockGHActionsIssueWithModes( 'opened', actionProjectName,
+                                       actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
+                                       true, false, true, false,
+                                       'CREATE-IN-JIRA', 'own',
+                                       overloadValues )
+} )
 
 
-Then(/^we detect it's not an action and exit successfully$/, async () => {
+Then( /^we detect it's not an action and exit successfully$/, async () => {
     const consoleLogsOutput = mockLog()
     
     const { syncJiraWithGH } = require( '../../src/sync' )

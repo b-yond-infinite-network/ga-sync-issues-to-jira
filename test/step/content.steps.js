@@ -3,13 +3,13 @@ const merge = require( 'deepmerge' )
 const { CaptureConsole } = require( '@aoberoi/capture-console' )
 const captureConsole     = new CaptureConsole()
 
-const { Before, After, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
+const { Before, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
 
-const { mockGHActionsIssue, mockNonGHActionsIssue } = require( '../helper/mockGH-actions' )
-let actionProjectName                               = 'BLA'
-let actionIssueType                                 = 'Subtask'
-let overloadGITHUBValues                            = null
-let overloadJIRAValues                              = null
+const { mockGHActionsIssue, mockGHAPI } = require( '../helper/mockGH-actions' )
+let actionProjectName                   = 'BLA'
+let actionIssueType                     = 'Subtask'
+let overloadGITHUBValues                = null
+let overloadJIRAValues                  = null
 
 
 const { mockJIRACalls }  = require( '../helper/mockJIRA-api' )
@@ -115,6 +115,9 @@ When( /^the action triggers$/, async () => {
 				   jiraUserEmail,
 				   jiraApiToken,
 				   overloadJIRAValues )
+	
+	mockGHAPI()
+	
 	await mockGHActionsIssue( 'opened',
 							  actionProjectName,
 							  actionIssueType,

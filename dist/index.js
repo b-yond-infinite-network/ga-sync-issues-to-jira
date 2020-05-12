@@ -863,7 +863,524 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
 
 
 /***/ }),
-/* 29 */,
+/* 29 */
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const core           = __webpack_require__( 470 )
+const JiraClient     = __webpack_require__( 876 )
+const { sliceInput } = __webpack_require__( 543 )
+let DEBUG            = () => { }
+
+async function handleJIRAData( issueChanges, useSubtaskMode, useEpicMode, fnDEBUG ) {
+	//ISSUE CHANGE will be:
+	//      {
+	//             event:          payload.action,
+	//             jiraKeys:       jiraKeys,
+	//             changes:        changedValues,
+	//             details:        payload.issue
+	//         }
+	DEBUG = fnDEBUG
+	try {
+		if( !issueChanges.jiraKeysToAttachTo
+			&& !issueChanges.jiraKeysToReplace ) {
+			//we have no parent task in JIRA, this should never happen
+			console.log( `WARNING: no JIRA parent story is labelled.` )
+			return null
+		}
+		
+		const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
+		console.log( `- we are pushed to project with key ${ jiraProjectKey }` )
+		
+		const jiraIssueTypeName = core.getInput( 'JIRA_ISSUETYPE_NAME' )
+		console.log( `-- using issue type ${ jiraIssueTypeName }` )
+		
+		
+		const ghOwnLabel         = core.getInput( 'OWN_LABEL' )
+		const ghForceCreateLabel = core.getInput( 'FORCE_CREATION_LABEL' )
+		
+		//Let's login to JIRA first
+		const jiraSession = setupJiraLogin()
+		
+		console.log( '-- login in JIRA' )
+		await loginToJiraAndCheckMyself( jiraSession )
+		
+		const jiraFieldIDEpic = useEpicMode
+								? await findEpicCustomFieldID( jiraSession )
+								: null
+		if( jiraFieldIDEpic ) {
+			console.log( `--- found Epic Link field ID to be ${ jiraFieldIDEpic }` )
+		}
+		else if( useEpicMode ) {
+			console.log( `--! unable to find Epic Link custom field ID... EPIC_MODE impossible` )
+			console.log( 'Ending Action' )
+			return
+		}
+		
+		//PROJECT_KEY HANDLING
+		// we allow list of keys, so we have to slice the input, then ensure that those project
+		// exist in JIRA, then ensure that the Issue Type listed for them exists too
+		const arrayProjectKeys = sliceInput( jiraProjectKey )
+		if( arrayProjectKeys.length === 0 ) {
+			arrayProjectKeys.push( jiraProjectKey )
+		}
+		
+		console.log( '--- filter only projects that exist' )
+		const isValidProjectKeys = await Promise.all( arrayProjectKeys.map( async ( currentProjectKey ) => {
+			return await checkProjectExist( jiraSession, currentProjectKey )
+		} ) )
+		
+		const validProjectKeys = arrayProjectKeys.filter( ( currentIsValid,
+															currentIndex ) => isValidProjectKeys[ currentIndex ] )
+		if( validProjectKeys.length === 0 ) {
+			console.log( '---! none of the project key listed are link to project that exist' )
+			throw 'No project exist in JIRA'
+		}
+		
+		const arrayIssueTypes = sliceInput( jiraIssueTypeName )
+		if( arrayIssueTypes.length === 0 ) {
+			arrayIssueTypes.push( jiraIssueTypeName )
+		}
+		
+		console.log( '--- checking issue type exist' )
+		const foundIssueType = await Promise.all( arrayProjectKeys.map( async ( currentProjectKey, currentIndex ) => {
+			if( !isValidProjectKeys[ currentIndex ] ) {
+				return null
+			}
+			
+			const indexToUse = currentIndex >= arrayIssueTypes.length
+							   ? arrayIssueTypes.length - 1
+							   : currentIndex
+			return await findIssueTypeRequested( jiraSession, currentProjectKey, arrayIssueTypes[ indexToUse ] )
+		} ) )
+		
+		const validProjectWithIssueType = arrayProjectKeys.filter( ( currentProjectKey,
+																	 currentIndex ) => foundIssueType[ currentIndex ] !==
+																					   null )
+		if( validProjectWithIssueType.length === 0 ) {
+			console.log( '---! none of the project have the Issue Type ' + jiraIssueTypeName )
+			throw 'No Issue Type exist for those project in JIRA'
+		}
+		// const isSubtaskType = jiraIssuetypeFound.subtask
+		
+		if( issueChanges.jiraKeysToAttachTo.length === 0
+			&& issueChanges.jiraKeysToReplace.length === 0 ) {
+			console.log( `ERROR: no label match the project keys ${ jiraProjectKey } -- this should have be trapped before, \n` +
+						 'please log an issue at https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues' )
+			return
+		}
+		
+		const summaryInGHIssue = ( issueChanges.changes && issueChanges.changes.title
+								   ? issueChanges.changes.title.from
+								   : issueChanges.details.title
+									 ? issueChanges.details.title
+									 : '#' + issueChanges.details.number )
+		
+		//MULTI PROJECT HANDLING
+		// when we have multi-project we have to match the issue that are left after validation of
+		// the Issue Types compatibility
+		const finalJIRAKeysToAttachTo = issueChanges.jiraKeysToAttachTo.length === 0
+										? []
+										: filterJiraKeysToAttachTo( issueChanges.jiraKeysToAttachTo,
+																	validProjectWithIssueType )
+		const finalJIRAKeysToReplace  = issueChanges.jiraKeysToReplace.length === 0
+										? []
+										: filterJiraKeysToReplace( issueChanges.jiraKeysToReplace,
+																   validProjectWithIssueType,
+																   ghOwnLabel,
+																   ghForceCreateLabel )
+		//
+		// Prioritizing sub-XXX label as a force sync
+		const { jiraIssueToReplace, jiraIssueToAttachTo } = await listToUpdateDirectly( jiraSession,
+																						validProjectWithIssueType,
+																						finalJIRAKeysToReplace,
+																						finalJIRAKeysToAttachTo,
+																						ghOwnLabel,
+																						ghForceCreateLabel,
+																						jiraFieldIDEpic,
+																						summaryInGHIssue )
+		
+		const jiraIssueToUpdateFromParent = await listToUpdateByAttachingToParent( jiraSession,
+																				   useSubtaskMode,
+																				   jiraIssueToAttachTo,
+																				   summaryInGHIssue,
+																				   jiraFieldIDEpic )
+		return !jiraIssueToReplace || jiraIssueToReplace.length === 0
+			   ? !jiraIssueToUpdateFromParent || jiraIssueToUpdateFromParent.length === 0
+				 ? null
+				 : jiraIssueToUpdateFromParent
+			   : !jiraIssueToUpdateFromParent || jiraIssueToUpdateFromParent.length === 0
+				 ? jiraIssueToReplace
+				 : [ ...jiraIssueToReplace, ...jiraIssueToUpdateFromParent ]
+	}
+	catch( error ) {
+		core.setFailed( error.message
+						? error.message
+						: error.body && error.body.message
+						  ? error.body.message
+						  : JSON.stringify( error ) )
+	}
+}
+
+function setupJiraLogin() {
+	//Let's login to JIRA first
+	return new JiraClient( {
+							   host:       core.getInput( 'JIRA_BASEURL' ),
+							   basic_auth: {
+								   email:     core.getInput( 'JIRA_USEREMAIL' ),
+								   api_token: core.getInput( 'JIRA_APITOKEN' ),
+							   },
+						   } )
+}
+
+async function loginToJiraAndCheckMyself( jiraSession ) {
+	try { await jiraSession.myself.getMyself() }
+	
+	catch( myselfError ) { manageJIRAAPIError( myselfError, jiraSession ) }
+}
+
+async function checkProjectExist( jiraSession, jiraProjectKey ) {
+	try {
+		await jiraSession.project.getProject( { projectIdOrKey: jiraProjectKey } )
+		return true
+	}
+	catch( projectError ) {
+		core.warning( `The JIRA Project ${ jiraProjectKey } does not exist or you don't have access.\nPlease contact your JIRA administrator to gain access.` )
+		return false
+	}
+}
+
+async function findIssueTypeRequested( jiraSession, jiraProjectKey, issuetypeToFind ) {
+	try {
+		const foundData = await jiraSession.issue.getCreateMetadata( {
+																		 projectKeys:    jiraProjectKey,
+																		 issuetypeNames: issuetypeToFind,
+																	 } )
+		if( !foundData
+			|| !foundData.projects
+			|| foundData.projects.length === 0
+			|| !foundData.projects[ 0 ].issuetypes
+			|| !foundData.projects[ 0 ].issuetypes.length === 0 ) {
+			return null
+		}
+		
+		const issueTypefound = foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name ===
+																							issuetypeToFind )
+		if( !issueTypefound ) {
+			console.log( `### Issue Type ${ issuetypeToFind } is invalid in JIRA project ${ jiraProjectKey }` )
+			throw `The JIRA issue type specified does not exist or is disabled on this project`
+		}
+		return issueTypefound
+	}
+	catch( errorGetCreateMetadata ) {
+		core.warning( `### Issue Type ${ issuetypeToFind } is invalid in JIRA project ${ jiraProjectKey }\nPlease contact your JIRA administrator to gain access.` )
+		return null
+	}
+}
+
+async function findEpicCustomFieldID( jiraSession ) {
+	try {
+		const foundFields = await jiraSession.field.getAllFields()
+		
+		const epicCustomField = foundFields.find( currentField => currentField.name === 'Epic Link' )
+		
+		if( !epicCustomField ) {
+			console.log( '### Epic custom field does not exist in JIRA' )
+			throw `The JIRA Epic custom field does not exist or is disabled on this project`
+		}
+		
+		return epicCustomField.id
+	}
+	
+	catch( myselfError ) { manageJIRAAPIError( myselfError, jiraSession ) }
+}
+
+function filterJiraKeysToAttachTo( arrJiraKeysToAttachTo, arrAllowedProjectKeys ) {
+	return arrJiraKeysToAttachTo.filter( currentIssueToAttachTo => {
+		return arrAllowedProjectKeys.find( currentProjectKey => {
+			return currentIssueToAttachTo.jiraIssueKey.startsWith( currentProjectKey + '-' )
+		} ) !== 'undefined'
+	} )
+}
+
+function filterJiraKeysToReplace( arrJiraKeysToReplace, arrAllowedProjectKeys, labelOwn, labelForceCreate ) {
+	return arrJiraKeysToReplace.filter( currentIssueToReplace => {
+		return arrAllowedProjectKeys.find( currentProjectKey => {
+			return currentIssueToReplace.jiraIssueKey.startsWith( currentProjectKey + '-' )
+				   || currentIssueToReplace.jiraIssueKey.startsWith( labelOwn + currentProjectKey + '-' )
+				   || currentIssueToReplace.jiraIssueKey === labelForceCreate
+		} ) !== 'undefined'
+	} )
+}
+
+async function findIssue( jiraSession, jiraIssueKey, jiraFieldIDEpic ) {
+	try {
+		const foundIssue = await jiraSession.issue.getIssue( { issueKey: jiraIssueKey } )
+		
+		//if we're in EPIC_MODE and the Epic Link is filled
+		// we had it to our root story fields as a "keyEpicLinked"
+		if( jiraFieldIDEpic
+			&& foundIssue.fields[ jiraFieldIDEpic ] ) {
+			foundIssue.keyEpicLinked = foundIssue.fields[ jiraFieldIDEpic ]
+			foundIssue.fieldIDEpic   = jiraFieldIDEpic
+		}
+		
+		return foundIssue
+	}
+	catch( issueError ) {
+		manageJIRAAPIError( issueError,
+							jiraSession,
+							`### issue ${ jiraIssueKey } is inaccessible in JIRA\n==> action skipped for label ${ jiraIssueKey }` )
+	}
+}
+
+
+async function listToUpdateDirectly( jiraSession, jiraValidProjectKeys, issuesToReplace, issuesToAttachTo, ghOwnLabel,
+									 ghForceCreateLabel, jiraFieldIDEpic, summaryOfIssue ) {
+	if( issuesToReplace.length === 0 ) {
+		return { jiraIssueToReplace: null, jiraIssueToAttachTo: issuesToAttachTo }
+	}
+	
+	// let listOfIssueKeyLabelToRemoveFromFullList = []
+	
+	//listing all the story we just want to replace the information into directly
+	// we also list the ones that are would be redundant
+	const { jiraIssueToUpdateDirectly, jiraIssueToRemoveFromAttachList } = await issuesToReplace.reduce(
+		async ( { jiraIssueToUpdateDirectly, jiraIssueToRemoveFromAttachList }, currentJIRAIssueKeyAndType ) => {
+			const foundJiraIssue = await validIssue( jiraSession, jiraValidProjectKeys, currentJIRAIssueKeyAndType,
+													 issuesToAttachTo, ghOwnLabel, ghForceCreateLabel,
+													 jiraFieldIDEpic, jiraIssueToRemoveFromAttachList, summaryOfIssue )
+			if( Array.isArray( foundJiraIssue ) ) {
+				jiraIssueToUpdateDirectly = [ ...jiraIssueToUpdateDirectly, ...foundJiraIssue ]
+			}
+			else {
+				jiraIssueToUpdateDirectly.push( foundJiraIssue )
+			}
+			
+			return { jiraIssueToUpdateDirectly, jiraIssueToRemoveFromAttachList }
+		},
+		{ jiraIssueToUpdateDirectly: [], jiraIssueToRemoveFromAttachList: [] } )
+	
+	
+	return {
+		jiraIssueToReplace:  jiraIssueToUpdateDirectly,
+		jiraIssueToAttachTo: issuesToAttachTo.filter( currentJIRAIssueKeyAndType => !jiraIssueToRemoveFromAttachList.includes(
+			currentJIRAIssueKeyAndType.jiraIssueKey ) ),
+	}
+}
+
+async function validIssue( jiraSession, jiraValidProjectKeys, currentJIRAIssueKeyAndType, issuesToAttachTo,
+						   ghOwnLabel, ghForceCreateLabel, jiraFieldIDEpic, listOfIssueKeyLabelToRemoveFromFullList,
+						   summaryOfIssue ) {
+	const issueKeyWithoutSub = currentJIRAIssueKeyAndType.jiraIssueKey.replace( ghOwnLabel, '' )
+	console.log( `Adding own-ed JIRA Issue ${ issueKeyWithoutSub } to the list of JIRA Issues to upgrade` )
+	
+	if( issueKeyWithoutSub === ghForceCreateLabel ) {
+		return await Promise.all( jiraValidProjectKeys.map(
+			async ( currentValidProjectKey ) => {
+				const createdIssue = await createJIRAIssue( jiraSession,
+															currentValidProjectKey,
+															currentJIRAIssueKeyAndType.jiraIssueType,
+															null,
+															summaryOfIssue )
+				DEBUG( `Created issue with return info ${ createdIssue }` )
+				if( !createdIssue ) { throw `Unable to create the the Jira Issue` }
+				
+				return await findIssue( jiraSession, createdIssue.key, jiraFieldIDEpic )
+			} ) )
+	}
+	
+	const foundJIRAIssue = await findIssue( jiraSession, issueKeyWithoutSub, jiraFieldIDEpic )
+	if( !foundJIRAIssue ) {
+		console.log( `--! Issue ${ issueKeyWithoutSub } is not in JIRA -- skipping it` )
+		return null
+	}
+	
+	const foundParentKey = foundJIRAIssue
+						   && foundJIRAIssue.fields
+						   && foundJIRAIssue.fields.parent
+						   && foundJIRAIssue.fields.parent.key
+						   ? foundJIRAIssue.fields.parent.key
+						   : null
+	//if we have a parent JIRA issue
+	// and it's in our list of issue to attach to
+	// we don't want to do it twice, so we remove it
+	// from our list of story to attach to and we keep
+	// it in our list of story to update directly (replace)
+	if( foundParentKey && issuesToAttachTo
+		&& issuesToAttachTo.findIndex( currentIssue => currentIssue.jiraIssueKey === foundParentKey ) !== -1 ) {
+		console.log( `--- ignoring parent labelling ${ foundParentKey } and upgrading ${ issueKeyWithoutSub } directly` )
+		listOfIssueKeyLabelToRemoveFromFullList.push( foundParentKey )
+	}
+	return foundJIRAIssue
+}
+
+
+async function listToUpdateByAttachingToParent( jiraSession, useSubtaskMode, issueToAttachTo,
+												summaryToLookForInSubtasks, jiraFieldIDEpic ) {
+	if( !issueToAttachTo
+		|| issueToAttachTo.length === 0 ) {
+		return null
+	}
+	
+	const jiraIssueToAttachTo = await Promise.all( issueToAttachTo.map( async ( currentJIRAIssueKeyAndtype ) => {
+		console.log( `-- currently attaching to JIRA Issue: ${ currentJIRAIssueKeyAndtype.jiraIssueKey }` )
+		const foundJIRAIssue = await findIssue( jiraSession, currentJIRAIssueKeyAndtype.jiraIssueKey, jiraFieldIDEpic )
+		if( !foundJIRAIssue ) {
+			console.log( `--! trying to attach to Issue that is not in JIRA ${ currentJIRAIssueKeyAndtype.jiraIssueKey } -- skipping it` )
+			return null
+		}
+		
+		//we inject the title as the parent title
+		foundJIRAIssue.parentTitle = foundJIRAIssue.fields.summary
+		
+		if( !useSubtaskMode ) {
+			return foundJIRAIssue
+		}
+		
+		if( summaryToLookForInSubtasks ) {
+			console.log( `-- Subtask mode using ${ summaryToLookForInSubtasks }` )
+			const foundSubtask = findSubtaskByTitle( foundJIRAIssue, summaryToLookForInSubtasks )
+			if( foundSubtask ) {
+				//EPIC_MODE means we push the parent's epic on the child/subtask
+				if( jiraFieldIDEpic && foundJIRAIssue.keyEpicLinked ) {
+					foundSubtask.keyEpicLinked = foundJIRAIssue.keyEpicLinked
+					foundSubtask.fieldIDEpic   = jiraFieldIDEpic
+				}
+				
+				//we inject he parent's title
+				foundSubtask.parentTitle = foundJIRAIssue.fields.summary
+				
+				return foundSubtask
+			}
+		}
+		
+		console.log( `-- Creation in JIRA with title: ${ summaryToLookForInSubtasks }` )
+		const createdIssue = await createJIRAIssue( jiraSession,
+													foundJIRAIssue.fields.project.key,
+													currentJIRAIssueKeyAndtype.jiraIssueType,
+													currentJIRAIssueKeyAndtype.jiraIssueKey,
+													summaryToLookForInSubtasks )
+		DEBUG( `Created issue with return info ${ createdIssue }` )
+		if( !createdIssue ) {
+			throw `Unable to create the the Jira Issue`
+		}
+		
+		const newlyCreatedIssue = await findIssue( jiraSession, createdIssue.key, jiraFieldIDEpic )
+		if( jiraFieldIDEpic && foundJIRAIssue.keyEpicLinked ) {
+			newlyCreatedIssue.keyEpicLinked = foundJIRAIssue.keyEpicLinked
+			newlyCreatedIssue.fieldIDEpic   = jiraFieldIDEpic
+		}
+		newlyCreatedIssue.parentTitle = foundJIRAIssue.fields.summary
+		
+		return newlyCreatedIssue
+	} ) )
+	return jiraIssueToAttachTo.filter( currentSubtaskOrIssue => currentSubtaskOrIssue !== null )
+}
+
+
+function findSubtaskByTitle( jiraParentIssue, titleToLookFor ) {
+	// - the story with the same title
+	const jiraSubtasks = findAllSubtasks( jiraParentIssue )
+	if( !jiraSubtasks
+		|| jiraSubtasks.length === 0 ) {
+		return null
+	}
+	
+	const foundWithTitle = findSubtaskWithTitle( jiraSubtasks, titleToLookFor )
+	if( foundWithTitle ) {
+		return foundWithTitle
+	}
+	
+	console.log( `--! no subtasks found with the title '${ titleToLookFor }' found, creating a new one` )
+	return null
+}
+
+function findAllSubtasks( jiraParentIssue ) {
+	console.log( `-- looking for subtask of JIRA Issue ${ jiraParentIssue.key }` )
+	if( !jiraParentIssue.fields[ "subtasks" ]
+		|| jiraParentIssue.fields[ "subtasks" ].length === 0 ) {
+		// no subtask found means we will create one
+		console.log( '--! no subtasks found, we will be creating a new one' )
+		return null
+	}
+	return jiraParentIssue.fields[ "subtasks" ]
+}
+
+
+function findSubtaskWithTitle( jiraSubtasksIssuesArray, summaryToFind ) {
+	console.log( `--- looking for one with summary "${ summaryToFind }"` )
+	//filtering subtask to find our title
+	const arrFoundSubtasksIssueWithTitle = jiraSubtasksIssuesArray.filter( currentJIRASubtaskObject => {
+		return currentJIRASubtaskObject.fields.summary && currentJIRASubtaskObject.fields.summary === summaryToFind
+	} )
+	
+	if( arrFoundSubtasksIssueWithTitle.length === 0 ) {
+		return null
+	}
+	
+	if( arrFoundSubtasksIssueWithTitle.length > 1 ) {
+		console.log( '---! found more than one subtask with our title, returning the first' )
+	}
+	
+	return arrFoundSubtasksIssueWithTitle[ 0 ]
+}
+
+async function createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeNameToUse, jiraParentIssueKey, title ) {
+	const issueData = {
+		"fields": {
+			"project":   {
+				"key": jiraProjectKey,
+			},
+			"issuetype": {
+				"name": jiraIssueTypeNameToUse,
+			},
+			"summary":   title,
+		},
+	}
+	if( jiraParentIssueKey ) {
+		issueData.fields.parent = { key: jiraParentIssueKey }
+	}
+	console.log( `-->Creating JIRA Issue of type : ${ JSON.stringify( jiraIssueTypeNameToUse ) } with title: ${ title }` )
+	DEBUG( `Creating JIRA ${ JSON.stringify( jiraIssueTypeNameToUse ) } with datas ${ JSON.stringify( issueData ) }` )
+	try {
+		return await jiraSession.issue.createIssue( issueData )
+	}
+	catch( createError ) {
+		manageJIRAAPIError( createError,
+							jiraSession,
+							'##### Unable to create Issue in JIRA',
+							'Create Issue failed' )
+	}
+}
+
+function manageJIRAAPIError( triggeredError, jiraSession, messageToLog, exceptionToRaise ) {
+	if( triggeredError.message ) {
+		console.log( `### JIRA API URL is invalid or inaccessible for ${ jiraSession.host }` )
+		throw 'Invalid API URL'
+	}
+	else {
+		const parsedError = JSON.parse( triggeredError )
+		if( parsedError.statusCode === 401 ) {
+			console.log( `### credentials unauthorized \n${ parsedError.body }` )
+			throw 'Unauthorized'
+		}
+		if( !messageToLog ) {
+			return
+		}
+		
+		if( parsedError.statusCode === 404 ) {
+			console.log( messageToLog )
+			if( exceptionToRaise ) {
+				throw exceptionToRaise
+			}
+		}
+	}
+}
+
+module.exports.handleJIRAData = handleJIRAData
+
+
+/***/ }),
 /* 30 */,
 /* 31 */,
 /* 32 */,
@@ -3074,407 +3591,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
 module.exports = require("os");
 
 /***/ }),
-/* 88 */
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-const core       = __webpack_require__( 470 )
-const JiraClient = __webpack_require__( 876 )
-const sliceInput = __webpack_require__ (543)
-let DEBUG        = () => { }
-
-async function handleSubtask( issueChanges, useSubtaskMode, fnDEBUG ) {
-	//ISSUE CHANGE will be:
-	//      {
-	//             event:          payload.action,
-	//             jiraKeys:       jiraKeys,
-	//             changes:        changedValues,
-	//             details:        payload.issue
-	//         }
-	DEBUG = fnDEBUG
-	try {
-		if( !issueChanges.jiraKeysToAttachTo
-			&& !issueChanges.jiraKeysToReplace ) {
-			//we have no parent task in JIRA, this should never happen
-			console.log( `WARNING: no JIRA parent story is labelled.` )
-			return null
-		}
-		
-		const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
-		console.log( `- we are pushed to project with key ${ jiraProjectKey }` )
-		
-		const jiraIssueTypeName = core.getInput( 'JIRA_ISSUETYPE_NAME' )
-		console.log( `-- using issue type ${ jiraIssueTypeName }` )
-		
-		//Let's login to JIRA first
-		const jiraSession = new JiraClient( {
-												host:       core.getInput( 'JIRA_BASEURL' ),
-												basic_auth: {
-													email:     core.getInput( 'JIRA_USEREMAIL' ),
-													api_token: core.getInput( 'JIRA_APITOKEN' ),
-												},
-											} )
-		
-		console.log( '-- login in JIRA' )
-		await loginToJiraAndCheckMyself( jiraSession )
-		
-		//PROJECT_KEY HANDLING
-		// we allow list of keys, so we have to slice the input, then ensure that those project
-		// exist in JIRA, then ensure that the Issue Type listed for them exists too
-		const arrayProjectKeys = sliceInput( jiraProjectKey )
-		if( arrayProjectKeys.length === 0 ) {
-			arrayProjectKeys.push( jiraProjectKey )
-		}
-		
-		console.log( '--- filter only projects that exist' )
-		const isValidProjectKeys = await Promise.all( arrayProjectKeys.map( async ( currentProjectKey ) => {
-			return await checkProjectExist( jiraSession, currentProjectKey )
-		} ) )
-		
-		const validProjectKeys = arrayProjectKeys.filter( ( currentIsValid,
-															currentIndex ) => isValidProjectKeys[ currentIndex ] )
-		if( validProjectKeys.length === 0 ) {
-			console.log( '---! none of the project key listed are link to project that exist' )
-			throw 'No project exist in JIRA'
-		}
-		
-		
-		const arrayIssueTypes = sliceInput( jiraIssueTypeName )
-		if( arrayIssueTypes.length === 0 ) {
-			arrayIssueTypes.push( jiraIssueTypeName )
-		}
-		
-		console.log( '--- checking issue type exist' )
-		const foundIssueType = await Promise.all( arrayProjectKeys.map( async ( currentProjectKey, currentIndex ) => {
-			if( !isValidProjectKeys[ currentIndex ] ) {
-				return null
-			}
-			
-			const indexToUse = currentIndex >= arrayIssueTypes.length
-							   ? arrayIssueTypes.length - 1
-							   : currentIndex
-			return await findIssueTypeRequested( jiraSession, currentProjectKey, arrayIssueTypes[ indexToUse ] )
-		} ) )
-		
-		const validProjectWithIssueType = arrayProjectKeys.filter( ( currentProjectKey,
-																	 currentIndex ) => foundIssueType[ currentIndex ] !==
-																					   null )
-		if( validProjectWithIssueType.length === 0 ) {
-			console.log( '---! none of the project have the Issue Type ' + jiraIssueTypeName )
-			throw 'No Issue Type exist for those project in JIRA'
-		}
-		// const isSubtaskType = jiraIssuetypeFound.subtask
-		
-		
-		if( issueChanges.jiraKeysToAttachTo.length === 0
-			&& issueChanges.jiraKeysToReplace.length === 0 ) {
-			console.log( `ERROR: no label match the project keys ${ jiraProjectKey } -- this should have be trapped before, \n` +
-						 'please log an issue at https://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues' )
-			return
-		}
-		
-		//MULTI PROJECT HANDLING
-		// when we have multi-project we have to match the issue that are left after validation of
-		// the Issue Types compatibility
-		const finalJIRAKeysToAttachTo = issueChanges.jiraKeysToAttachTo.length === 0
-										? []
-										: issueChanges.jiraKeysToAttachTo.filter( currentIssueToAttachTo =>
-																					  validProjectWithIssueType.find(
-																						  currentProjectKey =>
-																							  currentIssueToAttachTo.jiraIssueKey.startsWith(
-																								  currentProjectKey +
-																								  '-' ),
-																					  ) !== 'undefined' )
-		const finalJIRAKeysToReplace  = issueChanges.jiraKeysToReplace.length === 0
-										? []
-										: issueChanges.jiraKeysToReplace.filter( currentIssueToAttachTo =>
-																					 validProjectWithIssueType.find(
-																						 currentProjectKey =>
-																							 currentIssueToAttachTo.jiraIssueKey.startsWith(
-																								 currentProjectKey +
-																								 '-' ) ||
-																							 currentIssueToAttachTo.jiraIssueKey.startsWith(
-																								 'own' +
-																								 currentProjectKey +
-																								 '-' ),
-																					 ) !== 'undefined' )
-		//
-		// Prioritizing sub-XXX label as a force sync
-		const { jiraIssueToReplace, jiraIssueToAttachTo } = await listToUpdateDirectly( jiraSession,
-																						finalJIRAKeysToReplace,
-																						finalJIRAKeysToAttachTo )
-		
-		const summaryToLookFor            = ( issueChanges.changes && issueChanges.changes.title
-											  ? issueChanges.changes.title.from
-											  : issueChanges.details.title
-												? issueChanges.details.title
-												: '#' + issueChanges.details.number )
-		const jiraIssueToUpdateFromParent = await listToUpdateByAttachingToParent( jiraSession,
-																				   useSubtaskMode,
-																				   jiraIssueToAttachTo,
-																				   summaryToLookFor )
-		return !jiraIssueToReplace || jiraIssueToReplace.length === 0
-			   ? !jiraIssueToUpdateFromParent || jiraIssueToUpdateFromParent.length === 0
-				 ? null
-				 : jiraIssueToUpdateFromParent
-			   : !jiraIssueToUpdateFromParent || jiraIssueToUpdateFromParent.length === 0
-				 ? jiraIssueToReplace
-				 : [ ...jiraIssueToReplace, ...jiraIssueToUpdateFromParent ]
-	}
-	catch( error ) {
-		core.setFailed( error.message
-						? error.message
-						: error.body && error.body.message
-						  ? error.body.message
-						  : JSON.stringify( error ) )
-	}
-}
-
-async function loginToJiraAndCheckMyself( jiraSession ) {
-	try { await jiraSession.myself.getMyself() }
-	
-	catch( myselfError ) { manageJIRAAPIError( myselfError, jiraSession ) }
-}
-
-async function checkProjectExist( jiraSession, jiraProjectKey ) {
-	try {
-		await jiraSession.project.getProject( { projectIdOrKey: jiraProjectKey } )
-		return true
-	}
-	catch( projectError ) {
-		core.warning( `The JIRA Project ${ jiraProjectKey } does not exist or you don't have access.\nPlease contact your JIRA administrator to gain access.` )
-		return false
-	}
-}
-
-async function findIssueTypeRequested( jiraSession, jiraProjectKey, issuetypeToFind ) {
-	try {
-		const foundData = await jiraSession.issue.getCreateMetadata( {
-																		 projectKeys:    jiraProjectKey,
-																		 issuetypeNames: issuetypeToFind,
-																	 } )
-		if( !foundData
-			|| !foundData.projects
-			|| foundData.projects.length === 0
-			|| !foundData.projects[ 0 ].issuetypes
-			|| !foundData.projects[ 0 ].issuetypes.length === 0 ) {
-			return null
-		}
-		
-		const issueTypefound = foundData.projects[ 0 ].issuetypes.find( currentIssueType => currentIssueType.name ===
-																							issuetypeToFind )
-		if( !issueTypefound ) {
-			console.log( `### Issue Type ${ issuetypeToFind } is invalid in JIRA project ${ jiraProjectKey }` )
-			throw `The JIRA issue type specified does not exist or is disabled on this project`
-		}
-		return issueTypefound
-	}
-	catch( errorGetCreateMetadata ) {
-		core.warning( `### Issue Type ${ issuetypeToFind } is invalid in JIRA project ${ jiraProjectKey }\nPlease contact your JIRA administrator to gain access.` )
-		return null
-	}
-}
-
-async function findIssue( jiraSession, jiraIssueKey ) {
-	try {
-		return await jiraSession.issue.getIssue( { issueKey: jiraIssueKey } )
-	}
-	catch( issueError ) {
-		manageJIRAAPIError( issueError,
-							jiraSession,
-							`### issue ${ jiraIssueKey } is inaccessible in JIRA\n==> action skipped for label ${ jiraIssueKey }` )
-	}
-}
-
-
-async function listToUpdateDirectly( jiraSession, issuesToReplace, issuesToAttachTo ) {
-	if( issuesToReplace.length === 0 ) {
-		return { jiraIssueToReplace: null, jiraIssueToAttachTo: issuesToAttachTo }
-	}
-	
-	let listOfIssueKeyLabelToRemoveFromFullList = []
-	
-	const jiraIssueToUpdateDirectly = await Promise.all( issuesToReplace.map( async currentJIRAIssueKeyAndType => {
-		const issueKeyWithoutSub = currentJIRAIssueKeyAndType.jiraIssueKey.replace( 'own', '' )
-		console.log( `Adding own-ed JIRA Issue ${ issueKeyWithoutSub } to the list of JIRA Issues to upgrade` )
-		
-		const foundJIRAIssue = await findIssue( jiraSession, issueKeyWithoutSub )
-		if( !foundJIRAIssue ) {
-			console.log( `--! Issue ${ issueKeyWithoutSub } is not in JIRA -- skipping it` )
-			return null
-		}
-		
-		const foundParentKey = foundJIRAIssue
-							   && foundJIRAIssue.fields
-							   && foundJIRAIssue.fields.parent
-							   && foundJIRAIssue.fields.parent.key
-							   ? foundJIRAIssue.fields.parent.key
-							   : null
-		
-		if( foundParentKey && issuesToAttachTo
-			&& issuesToAttachTo.findIndex( currentIssue => currentIssue.jiraIssueKey === foundParentKey ) !== -1 ) {
-			console.log( `--- ignoring parent labelling ${ foundParentKey } and upgrading ${ issueKeyWithoutSub } directly` )
-			listOfIssueKeyLabelToRemoveFromFullList.push( foundParentKey )
-		}
-		return foundJIRAIssue
-	} ) )
-	
-	
-	return {
-		jiraIssueToReplace:  jiraIssueToUpdateDirectly.filter( currentSubtaskOrIssue => currentSubtaskOrIssue !==
-																						null ),
-		jiraIssueToAttachTo: issuesToAttachTo.filter( currentJIRAIssueKeyAndType => !listOfIssueKeyLabelToRemoveFromFullList.includes(
-			currentJIRAIssueKeyAndType.jiraIssueKey ) ),
-	}
-}
-
-async function listToUpdateByAttachingToParent( jiraSession, useSubtaskMode, issueToAttachTo,
-												summaryToLookForInSubtasks ) {
-	if( !issueToAttachTo
-		|| issueToAttachTo.length === 0 ) {
-		return null
-	}
-	
-	const jiraIssueToAttachTo = await Promise.all( issueToAttachTo.map( async ( currentJIRAIssueKeyAndtype ) => {
-		console.log( `-- currently attaching to JIRA Issue: ${ currentJIRAIssueKeyAndtype.jiraIssueKey }` )
-		const foundJIRAIssue = await findIssue( jiraSession, currentJIRAIssueKeyAndtype.jiraIssueKey )
-		if( !foundJIRAIssue ) {
-			console.log( `--! trying to attach to Issue that is not in JIRA ${ currentJIRAIssueKeyAndtype.jiraIssueKey } -- skipping it` )
-			return null
-		}
-		
-		if( !useSubtaskMode ) {
-			return foundJIRAIssue
-		}
-		
-		if( summaryToLookForInSubtasks ) {
-			console.log( `-- Subtask mode using ${ summaryToLookForInSubtasks }` )
-			const foundSubtask = findSubtaskByTitle( foundJIRAIssue, summaryToLookForInSubtasks )
-			if( foundSubtask ) {
-				return foundSubtask
-			}
-		}
-		
-		console.log( `-- Creation in JIRA with title: ${ summaryToLookForInSubtasks }` )
-		const createdIssue = await createJIRAIssue( jiraSession,
-													foundJIRAIssue.fields.project.key,
-													currentJIRAIssueKeyAndtype.jiraIssueType,
-													currentJIRAIssueKeyAndtype.jiraIssueKey,
-													summaryToLookForInSubtasks )
-		DEBUG( `Created issue with return info ${ createdIssue }` )
-		if( !createdIssue ) {
-			throw `Unable to create the the Jira Issue`
-		}
-		
-		return findIssue( jiraSession, createdIssue.key )
-	} ) )
-	return jiraIssueToAttachTo.filter( currentSubtaskOrIssue => currentSubtaskOrIssue !== null )
-}
-
-
-function findSubtaskByTitle( jiraParentIssue, titleToLookFor ) {
-	// - the story with the same title
-	const jiraSubtasks = findAllSubtasks( jiraParentIssue )
-	if( !jiraSubtasks
-		|| jiraSubtasks.length === 0 ) {
-		return null
-	}
-	
-	const foundWithTitle = findSubtaskWithTitle( jiraSubtasks, titleToLookFor )
-	if( foundWithTitle ) {
-		return foundWithTitle
-	}
-	
-	console.log( `--! no subtasks found with the title '${ titleToLookFor }' found, creating a new one` )
-	return null
-}
-
-function findAllSubtasks( jiraParentIssue ) {
-	console.log( `-- looking for subtask of JIRA Issue ${ jiraParentIssue.key }` )
-	if( !jiraParentIssue.fields[ "subtasks" ]
-		|| jiraParentIssue.fields[ "subtasks" ].length === 0 ) {
-		// no subtask found means we will create one
-		console.log( '--! no subtasks found, we will be creating a new one' )
-		return null
-	}
-	return jiraParentIssue.fields[ "subtasks" ]
-}
-
-
-function findSubtaskWithTitle( jiraSubtasksIssuesArray, summaryToFind ) {
-	console.log( `--- looking for one with summary "${ summaryToFind }"` )
-	//filtering subtask to find our title
-	const arrFoundSubtasksIssueWithTitle = jiraSubtasksIssuesArray.filter( currentJIRASubtaskObject => {
-		return currentJIRASubtaskObject.fields.summary && currentJIRASubtaskObject.fields.summary === summaryToFind
-	} )
-	
-	if( arrFoundSubtasksIssueWithTitle.length === 0 ) {
-		return null
-	}
-	
-	if( arrFoundSubtasksIssueWithTitle.length > 1 ) {
-		console.log( '---! found more than one subtask with our title, returning the first' )
-	}
-	
-	return arrFoundSubtasksIssueWithTitle[ 0 ]
-}
-
-async function createJIRAIssue( jiraSession, jiraProjectKey, jiraIssueTypeNameToUse, jiraParentIssueKey, title ) {
-	const issueData = {
-		"fields": {
-			"project":   {
-				"key": jiraProjectKey,
-			},
-			"issuetype": {
-				"name": jiraIssueTypeNameToUse,
-			},
-			"parent":    {
-				"key": jiraParentIssueKey,
-			},
-			"summary":   title,
-		},
-	}
-	console.log( `-->Creating JIRA Issue of type : ${ JSON.stringify( jiraIssueTypeNameToUse ) } with title: ${ title }` )
-	DEBUG( `Creating JIRA ${ JSON.stringify( jiraIssueTypeNameToUse ) } with datas ${ JSON.stringify( issueData ) }` )
-	try {
-		return await jiraSession.issue.createIssue( issueData )
-	}
-	catch( createError ) {
-		manageJIRAAPIError( createError,
-							jiraSession,
-							'##### Unable to create Issue in JIRA',
-							'Create Issue failed' )
-	}
-}
-
-function manageJIRAAPIError( triggeredError, jiraSession, messageToLog, exceptionToRaise ) {
-	if( triggeredError.message ) {
-		console.log( `### JIRA API URL is invalid or inaccessible for ${ jiraSession.host }` )
-		throw 'Invalid API URL'
-	}
-	else {
-		const parsedError = JSON.parse( triggeredError )
-		if( parsedError.statusCode === 401 ) {
-			console.log( `### credentials unauthorized \n${ parsedError.body }` )
-			throw 'Unauthorized'
-		}
-		if( !messageToLog ) {
-			return
-		}
-		
-		if( parsedError.statusCode === 404 ) {
-			console.log( messageToLog )
-			if( exceptionToRaise ) {
-				throw exceptionToRaise
-			}
-		}
-	}
-}
-
-
-module.exports = handleSubtask
-
-
-/***/ }),
+/* 88 */,
 /* 89 */,
 /* 90 */,
 /* 91 */
@@ -4426,43 +4543,54 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
 /* 111 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
-const core              = __webpack_require__( 470 )
+const core = __webpack_require__( 470 )
 
-const handleIssues          = __webpack_require__( 376 )
-const handleSubtask         = __webpack_require__( 88 )
-const handleSync            = __webpack_require__( 189 )
+const { handleGHIssues }   = __webpack_require__( 426 )
+const { handleJIRAData }   = __webpack_require__( 29 )
+const { handleJIRAUpdate } = __webpack_require__( 189 )
+const { handleGHUpdate }   = __webpack_require__( 799 )
 
 async function syncJiraWithGH() {
     try {
         const useSubtaskMode = core.getInput( 'SUBTASK_MODE' ) === 'true'
-        const DEBUG = core.getInput( 'DEBUG_MODE' ) === 'true'
-                      ? ( messageToLog ) => ( console.log( `<<<<DEBUG----------------\n${ JSON.stringify( messageToLog ) }\n----------------DEBUG>>>>` ) )
-                      : () => {}
-    
-    
-        const issueEventTriggered = await handleIssues( useSubtaskMode, DEBUG )
+        const useEpicMode    = core.getInput( 'EPIC_MODE' ) === 'true'
+        const DEBUG          = core.getInput( 'DEBUG_MODE' ) === 'true'
+                               ? ( messageToLog ) => ( console.log( `<<<<DEBUG----------------\n${ JSON.stringify(
+                messageToLog ) }\n----------------DEBUG>>>>` ) )
+                               : () => {}
+        
+        
+        const issueEventTriggered = await handleGHIssues( useSubtaskMode, useEpicMode, DEBUG )
         if( !issueEventTriggered ) {
             console.log( `--! no change to be handled` )
             console.log( 'Ending Action' )
             return
         }
-    
-        const subtasksOrIssuesToUpdate = await handleSubtask( issueEventTriggered, useSubtaskMode, DEBUG )
-        DEBUG( subtasksOrIssuesToUpdate )
-        if( !subtasksOrIssuesToUpdate
-            || subtasksOrIssuesToUpdate.length === 0 ) {
+        
+        const arrSubtasksOrIssuesToUpdate = await handleJIRAData( issueEventTriggered,
+                                                                  useSubtaskMode,
+                                                                  useEpicMode,
+                                                                  DEBUG )
+        DEBUG( arrSubtasksOrIssuesToUpdate )
+        if( !arrSubtasksOrIssuesToUpdate
+            || arrSubtasksOrIssuesToUpdate.length === 0 ) {
             console.log( `--! no subtask or issue to upgrade found at all` )
             console.log( 'Ending Action' )
             return
         }
-    
-        for( const currentSubtaskOrIssue of subtasksOrIssuesToUpdate ) {
-            await handleSync( currentSubtaskOrIssue, issueEventTriggered, DEBUG )
+        
+        //we push all changes to JIRA
+        for( const currentSubtaskOrIssue of arrSubtasksOrIssuesToUpdate ) {
+            await handleJIRAUpdate( currentSubtaskOrIssue, issueEventTriggered, DEBUG )
         }
+        
+        //we sync back to GITHUB
+        console.log( `Syncing back to GITHUB` )
+        await handleGHUpdate( issueEventTriggered, arrSubtasksOrIssuesToUpdate, DEBUG )
         
         console.log( `==> action success` )
         console.log( `Action Finished` )
-        core.setOutput('time', new Date().toTimeString() )
+        core.setOutput( 'time', new Date().toTimeString() )
         
         return 0
     } catch ( error ) {
@@ -7451,14 +7579,14 @@ const core           = __webpack_require__( 470 )
 const JiraClient     = __webpack_require__( 876 )
 const translateToADF = __webpack_require__( 869 )
 
-async function handleSync( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ){
+async function handleJIRAUpdate( subtaskOrIssuetoChange, issueEventTriggered, DEBUG ) {
 	try {
 		const jiraSession = new JiraClient( {
 												host:       core.getInput( 'JIRA_BASEURL' ),
 												basic_auth: {
 													email:     core.getInput( 'JIRA_USEREMAIL' ),
 													api_token: core.getInput( 'JIRA_APITOKEN' ),
-												}
+												},
 											} )
 		
 		const changeToPush = listPrioritizedFieldsDifference( issueEventTriggered, subtaskOrIssuetoChange )
@@ -7556,21 +7684,55 @@ async function jiraDeleteIssue( jiraSession, subtaskOrIssueToUpdate ) {
 	await jiraSession.issue.deleteIssue( { issueKey: subtaskOrIssueToUpdate.key } )
 }
 
-function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueToChange ){
+function listPrioritizedFieldsDifference( issueChangeTriggered, subtaskOrIssueToChange ) {
 	//TODO missing events to consider [ "assigned", "unassigned", "unlabeled", "milestoned", "demilestoned"]
 	// we only sync summary and description for now
-	const changes = {}
+	const epicMode = core.getInput( 'EPIC_MODE' ) == 'true'
+	const changes  = {}
 	
 	if( issueChangeTriggered.details.title
 		&& subtaskOrIssueToChange.fields
-		&& subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title )
+		&& subtaskOrIssueToChange.fields.summary !== issueChangeTriggered.details.title ) {
 		changes.summary = issueChangeTriggered.details.title
+	}
 	
 	if( issueChangeTriggered.details.body
 		&& subtaskOrIssueToChange.fields
 		&& subtaskOrIssueToChange.fields.description !== issueChangeTriggered.details.body ) {
 		changes.description = translateToADF( issueChangeTriggered.details.body )
 	}
+	
+	if( epicMode && subtaskOrIssueToChange.fieldIDEpic && subtaskOrIssueToChange.keyEpicLinked ) {
+		changes[ subtaskOrIssueToChange.fieldIDEpic ] = subtaskOrIssueToChange.keyEpicLinked
+	}
+	
+	// if we want to sync the resolution status
+	// if( reporterOn && subtaskOrIssueToChange.fields.resolution && subtaskOrIssueToChange.fields.resolution.id or
+	// name ){ }
+	
+	
+	// if we want to sync the workflow status
+	// if( reporterOn && subtaskOrIssueToChange.fields.status && subtaskOrIssueToChange.fields.status.id or name ){
+	//}
+	
+	// if we want to sync the assignee
+	// if( reporterOn && subtaskOrIssueToChange.fields.assignee && subtaskOrIssueToChange.fields.assignee.emailAddress
+	// ){ }
+	
+	// if we want to sync the creator
+	// if( reporterOn && subtaskOrIssueToChange.fields.creator && subtaskOrIssueToChange.fields.creator.emailAddress ){
+	//}
+	
+	// if we want to sync the reporter
+	// if( reporterOn && subtaskOrIssueToChange.fields.reporter && subtaskOrIssueToChange.fields.reporter.emailAddress
+	// ){ }
+	
+	// if we want to sync the comments
+	// if( reporterOn && subtaskOrIssueToChange.fields.comment && subtaskOrIssueToChange.fields.comment.comments &&
+	// 		subtaskOrIssueToChange.fields.comment.comments[ X ] .author
+	// 				&& subtaskOrIssueToChange.fields.comment.comments[ X ] .author.emailAddress <= email not present
+	// in GH, login is only accessible subtaskOrIssueToChange.fields.comment.comments[ X ] .body <= ADF of GH
+	// body	){ //what to do with the updateAuthor? }
 	
 	return changes
 }
@@ -7622,8 +7784,7 @@ async function jiraListStateToTransitionTo( jiraSession, subtaskOrIssueToUpdate,
 	return null
 }
 
-
-module.exports 	= handleSync
+module.exports.handleJIRAUpdate = handleJIRAUpdate
 
 
 
@@ -18247,175 +18408,7 @@ module.exports = function extend() {
 
 /***/ }),
 /* 375 */,
-/* 376 */
-/***/ (function(module, __unusedexports, __webpack_require__) {
-
-const core   = __webpack_require__( 470 )
-const github = __webpack_require__( 469 )
-const sliceInput = __webpack_require__ (543)
-
-async function handleIssues( useSubtaskMode, DEBUG ) {
-    const actionPossible   = [ "opened",
-                               "edited",
-                               "deleted",
-                               "transferred",
-                               "pinned",
-                               "unpinned",
-                               "closed",
-                               "reopened",
-                               "assigned",
-                               "unassigned",
-                               "labeled",
-                               "unlabeled",
-                               "locked",
-                               "unlocked",
-                               "milestoned",
-                               "demilestoned" ]
-    const actionToConsider = [ "opened",
-                               "edited",
-                               "deleted",
-                               "closed",
-                               "reopened",
-                               "assigned",
-                               "unassigned",
-                               "labeled",
-                               "unlabeled",
-                               "milestoned",
-                               "demilestoned" ]
-    
-    try {
-        const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
-        if( !jiraProjectKey ) {
-            console.log( '==> action skipped -- no project key(s)' )
-            return null
-        }
-        
-        
-        const jiraIssueTypeName = core.getInput( 'JIRA_ISSUETYPE_NAME' )
-        if( !jiraIssueTypeName ) {
-            console.log( '==> action skipped -- no issue type name(s)' )
-            return null
-        }
-        
-        const changeEvent = github.context.payload
-        
-        if( !changeEvent.issue ) {
-            throw Error(
-                'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
-        }
-        
-        if( actionPossible.indexOf( changeEvent.action ) === -1 ) {
-            core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
-        }
-    
-        DEBUG( changeEvent )
-    
-        if( actionToConsider.indexOf( changeEvent.action ) === -1 ) {
-            console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
-            return null
-        }
-        
-        console.log( '-- retrieving all changes' )
-        if( changeEvent.action === 'edited'
-            && !changeEvent.changes ) {
-            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ JSON.stringify( changeEvent ) }` )
-            return null
-        }
-        
-        console.log( '-- retrieving all labels' )
-        const issueDetails = changeEvent.issue
-        if( !issueDetails.labels
-            || issueDetails.labels.length < 1
-            || ( issueDetails.labels.length === 1 && issueDetails.labels[ 0 ].name === '' ) ) {
-            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
-            return null
-        }
-        
-        
-        const arrProjectKeys = sliceInput( jiraProjectKey )
-        if( arrProjectKeys.length === 0 ) {
-            arrProjectKeys.push( jiraProjectKey )
-        }
-        
-        const arrIssueTypes = sliceInput( jiraIssueTypeName )
-        if( arrIssueTypes.length === 0 ) {
-            arrIssueTypes.push( jiraIssueTypeName )
-        }
-        
-        const jiraAttachKeys = useSubtaskMode
-                               ? issueDetails.labels.reduce( ( currentKeysAndType, currentLabel ) => {
-                if( !currentLabel.name ) {
-                    console.log( '--- some label have no name' )
-                    return currentKeysAndType
-                }
-                const idxFoundProject = arrProjectKeys.findIndex( currentProjectKey =>
-                                                                      currentLabel.name.startsWith( currentProjectKey +
-                                                                                                    '-' ) )
-                if( idxFoundProject === -1 ) {
-                    return currentKeysAndType
-                }
-                const indexIssueTypeToUse = idxFoundProject >= arrIssueTypes.length
-                                            ? arrIssueTypes.length - 1
-                                            : idxFoundProject
-                
-                currentKeysAndType.push( {
-                                             jiraIssueKey:  currentLabel.name,
-                                             jiraIssueType: arrIssueTypes[ indexIssueTypeToUse ],
-                                         } )
-                return currentKeysAndType
-            }, [] )
-                               : []
-        
-        const jiraReplaceKeys = issueDetails.labels.reduce( ( currentKeysAndType, currentLabel ) => {
-            if( !currentLabel.name ) {
-                console.log( '--- some label have no name' )
-                return currentKeysAndType
-            }
-            const idxFoundProject = arrProjectKeys.findIndex( currentProjectKey =>
-                                                                  ( useSubtaskMode
-                                                                    ? currentLabel.name.startsWith( 'own' +
-                                                                                                    currentProjectKey +
-                                                                                                    '-' )
-                                                                    : currentLabel.name.startsWith( currentProjectKey +
-                                                                                                    '-' ) ) )
-            if( idxFoundProject === -1 ) {
-                return currentKeysAndType
-            }
-            const indexIssueTypeToUse = idxFoundProject >= arrIssueTypes.length
-                                        ? arrIssueTypes.length - 1
-                                        : idxFoundProject
-            
-            currentKeysAndType.push( {
-                                         jiraIssueKey:  currentLabel.name,
-                                         jiraIssueType: arrIssueTypes[ indexIssueTypeToUse ],
-                                     } )
-            return currentKeysAndType
-        }, [] )
-        
-        // console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
-        if( jiraAttachKeys.length === 0 &&
-            jiraReplaceKeys.length === 0 ) {
-            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found starting with the project key -- ignoring all labels` )
-            return null
-        }
-        
-        return {
-            event:              changeEvent.action,
-            jiraKeysToAttachTo: jiraAttachKeys,
-            jiraKeysToReplace:  jiraReplaceKeys,
-            changes:            changeEvent.changes,
-            details:            issueDetails,
-        }
-        
-    } catch( error ) {
-        core.setFailed( error.message )
-    }
-}
-
-module.exports = handleIssues
-
-
-/***/ }),
+/* 376 */,
 /* 377 */,
 /* 378 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
@@ -20365,7 +20358,205 @@ function parallel(list, iterator, callback)
 
 /***/ }),
 /* 425 */,
-/* 426 */,
+/* 426 */
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const core           = __webpack_require__( 470 )
+const github         = __webpack_require__( 469 )
+const { sliceInput } = __webpack_require__( 543 )
+
+async function handleGHIssues( useSubtaskMode, useEpicMode, DEBUG ) {
+    const actionPossible   = [ "opened",
+                               "edited",
+                               "deleted",
+                               "transferred",
+                               "pinned",
+                               "unpinned",
+                               "closed",
+                               "reopened",
+                               "assigned",
+                               "unassigned",
+                               "labeled",
+                               "unlabeled",
+                               "locked",
+                               "unlocked",
+                               "milestoned",
+                               "demilestoned" ]
+    const actionToConsider = [ "opened",
+                               "edited",
+                               "deleted",
+                               "closed",
+                               "reopened",
+                               "assigned",
+                               "unassigned",
+                               "labeled",
+                               "unlabeled",
+                               "milestoned",
+                               "demilestoned" ]
+    
+    try {
+    
+        if( useSubtaskMode ) { console.log( '-- SUBTASK MODE is ON - we\'re attaching ourselves to labelled issue(s)' ) }
+        else { console.log( '-- SUBTASK MODE is OFF - we\'re replacing the labelled issue(s)' ) }
+    
+        if( useEpicMode ) { console.log( '-- EPIC MODE is ON - we maintain Epic Link from the labelled issue(s)' ) }
+        else { console.log( '--- EPIC MODE is OFF - we ignore Epic Link from the labelled issue(s)' ) }
+    
+        const labelForceCreate = core.getInput( 'FORCE_CREATION_LABEL' )
+        console.log( `--- Force creation label is ${ labelForceCreate }` )
+    
+        const labelOwn = core.getInput( 'OWN_LABEL' )
+        console.log( `--- Own label is ${ labelOwn }` )
+    
+        const jiraProjectKey = core.getInput( 'JIRA_PROJECTKEY' )
+        if( !jiraProjectKey ) {
+            console.log( '==> action skipped -- no project key(s)' )
+            return null
+        }
+    
+        const jiraIssueTypeName = core.getInput( 'JIRA_ISSUETYPE_NAME' )
+        if( !jiraIssueTypeName ) {
+            console.log( '==> action skipped -- no issue type name(s)' )
+            return null
+        }
+        
+        const changeEvent = github.context.payload
+        
+        if( !changeEvent.issue ) {
+            throw Error(
+                'This action was not triggered by a Github Issue.\nPlease ensure your GithubAction is triggered only when an Github Issue is changed' )
+        }
+        
+        if( actionPossible.indexOf( changeEvent.action ) === -1 ) {
+            core.warning( `The Github Issue event ${ changeEvent.action } is not supported.\nPlease try raising an issue at \nhttps://github.com/b-yond-infinite-network/sync-jira-subtask-to-gh-issues-action/issues` )
+        }
+    
+        DEBUG( changeEvent )
+    
+        if( actionToConsider.indexOf( changeEvent.action ) === -1 ) {
+            console.log( `==> action skipped for unsupported event ${ changeEvent.action }` )
+            return null
+        }
+        
+        console.log( '-- retrieving all changes' )
+        if( changeEvent.action === 'edited'
+            && !changeEvent.changes ) {
+            console.log( `==> action skipped for event ${ changeEvent.action } due to empty change set ${ JSON.stringify( changeEvent ) }` )
+            return null
+        }
+        
+        console.log( '-- retrieving all labels' )
+        const issueDetails = changeEvent.issue
+        if( !issueDetails.labels
+            || issueDetails.labels.length < 1
+            || ( issueDetails.labels.length === 1 && issueDetails.labels[ 0 ].name === '' ) ) {
+            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found at all` )
+            return null
+        }
+    
+    
+        const arrProjectKeys = sliceInput( jiraProjectKey )
+        if( arrProjectKeys.length === 0 ) {
+            arrProjectKeys.push( jiraProjectKey )
+        }
+    
+        const arrIssueTypes = sliceInput( jiraIssueTypeName )
+        if( arrIssueTypes.length === 0 ) {
+            arrIssueTypes.push( jiraIssueTypeName )
+        }
+    
+        //we look into each of the labels the issue has
+        // and match them up with our allowed project keys
+        const jiraAttachKeys = useSubtaskMode
+                               ? findLabelledKeysMeantToBeAttachedTo( issueDetails.labels,
+                                                                      arrProjectKeys,
+                                                                      arrIssueTypes )
+                               : []
+    
+        const jiraReplaceKeys = findLabelledKeysMeantToBeReplaced( issueDetails.labels, arrProjectKeys, arrIssueTypes,
+                                                                   useSubtaskMode, labelOwn, labelForceCreate )
+    
+        // console.log( `-- labeled: ${ JSON.stringify( jiraIDS ) }` )
+        if( jiraAttachKeys.length === 0 &&
+            jiraReplaceKeys.length === 0 ) {
+            console.log( `==> action skipped for event ${ changeEvent.action } - no labels found starting with the project key -- ignoring all labels` )
+            return null
+        }
+    
+        return {
+            event:              changeEvent.action,
+            jiraKeysToAttachTo: jiraAttachKeys,
+            jiraKeysToReplace:  jiraReplaceKeys,
+            changes:            changeEvent.changes,
+            details:            issueDetails,
+            repository:         changeEvent.repository,
+        }
+    
+    }
+    catch( error ) {
+        core.setFailed( error.message )
+    }
+}
+
+function findLabelledKeysMeantToBeAttachedTo( arrLabels, arrAllowedProjectKeys, arrAllowedIssueTypes ) {
+    return arrLabels.reduce( ( currentKeysAndType, currentLabel ) => {
+        if( !currentLabel.name ) {
+            console.log( '--- some label have no name' )
+            return currentKeysAndType
+        }
+        const idxFoundProject = arrAllowedProjectKeys.findIndex( currentProjectKey => {
+            return currentLabel.name.startsWith( currentProjectKey + '-' )
+        } )
+        
+        if( idxFoundProject === -1 ) { return currentKeysAndType }
+        
+        const indexIssueTypeToUse = idxFoundProject >= arrAllowedIssueTypes.length
+                                    ? arrAllowedIssueTypes.length - 1
+                                    : idxFoundProject
+        
+        currentKeysAndType.push( {
+                                     jiraIssueKey:  currentLabel.name,
+                                     jiraIssueType: arrAllowedIssueTypes[ indexIssueTypeToUse ],
+                                 } )
+        return currentKeysAndType
+    }, [] )
+}
+
+function findLabelledKeysMeantToBeReplaced( arrLabels, arrProjectKeys, arrIssueTypes, useSubtaskMode, labelOwn,
+                                            labelForceCreate ) {
+    return arrLabels.reduce( ( currentKeysAndType, currentLabel ) => {
+        if( !currentLabel.name ) {
+            console.log( '--- some label have no name' )
+            return currentKeysAndType
+        }
+        const idxFoundProject = arrProjectKeys.findIndex( currentProjectKey =>
+                                                              ( useSubtaskMode
+                                                                ? currentLabel.name.startsWith( labelOwn +
+                                                                                                currentProjectKey +
+                                                                                                '-' )
+                                                                  || currentLabel.name === labelForceCreate
+                                                                : currentLabel.name.startsWith( currentProjectKey +
+                                                                                                '-' )
+                                                                  || currentLabel.name === labelForceCreate ) )
+        if( idxFoundProject === -1 ) {
+            return currentKeysAndType
+        }
+        const indexIssueTypeToUse = idxFoundProject >= arrIssueTypes.length
+                                    ? arrIssueTypes.length - 1
+                                    : idxFoundProject
+        
+        currentKeysAndType.push( {
+                                     jiraIssueKey:  currentLabel.name,
+                                     jiraIssueType: arrIssueTypes[ indexIssueTypeToUse ],
+                                 } )
+        return currentKeysAndType
+    }, [] )
+}
+
+module.exports.handleGHIssues = handleGHIssues
+
+
+/***/ }),
 /* 427 */
 /***/ (function(module, __unusedexports, __webpack_require__) {
 
@@ -20587,14 +20778,28 @@ class Command {
         return cmdStr;
     }
 }
+/**
+ * Sanitizes an input into a string so it can be passed into issueCommand safely
+ * @param input input to sanitize into a string
+ */
+function toCommandValue(input) {
+    if (input === null || input === undefined) {
+        return '';
+    }
+    else if (typeof input === 'string' || input instanceof String) {
+        return input;
+    }
+    return JSON.stringify(input);
+}
+exports.toCommandValue = toCommandValue;
 function escapeData(s) {
-    return (s || '')
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A');
 }
 function escapeProperty(s) {
-    return (s || '')
+    return toCommandValue(s)
         .replace(/%/g, '%25')
         .replace(/\r/g, '%0D')
         .replace(/\n/g, '%0A')
@@ -25714,11 +25919,13 @@ var ExitCode;
 /**
  * Sets env variable for this action and future actions in the job
  * @param name the name of the variable to set
- * @param val the value of the variable
+ * @param val the value of the variable. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function exportVariable(name, val) {
-    process.env[name] = val;
-    command_1.issueCommand('set-env', { name }, val);
+    const convertedVal = command_1.toCommandValue(val);
+    process.env[name] = convertedVal;
+    command_1.issueCommand('set-env', { name }, convertedVal);
 }
 exports.exportVariable = exportVariable;
 /**
@@ -25757,12 +25964,22 @@ exports.getInput = getInput;
  * Sets the value of an output.
  *
  * @param     name     name of the output to set
- * @param     value    value to store
+ * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setOutput(name, value) {
     command_1.issueCommand('set-output', { name }, value);
 }
 exports.setOutput = setOutput;
+/**
+ * Enables or disables the echoing of commands into stdout for the rest of the step.
+ * Echoing is disabled by default if ACTIONS_STEP_DEBUG is not set.
+ *
+ */
+function setCommandEcho(enabled) {
+    command_1.issue('echo', enabled ? 'on' : 'off');
+}
+exports.setCommandEcho = setCommandEcho;
 //-----------------------------------------------------------------------
 // Results
 //-----------------------------------------------------------------------
@@ -25796,18 +26013,18 @@ function debug(message) {
 exports.debug = debug;
 /**
  * Adds an error issue
- * @param message error issue message
+ * @param message error issue message. Errors will be converted to string via toString()
  */
 function error(message) {
-    command_1.issue('error', message);
+    command_1.issue('error', message instanceof Error ? message.toString() : message);
 }
 exports.error = error;
 /**
  * Adds an warning issue
- * @param message warning issue message
+ * @param message warning issue message. Errors will be converted to string via toString()
  */
 function warning(message) {
-    command_1.issue('warning', message);
+    command_1.issue('warning', message instanceof Error ? message.toString() : message);
 }
 exports.warning = warning;
 /**
@@ -25865,8 +26082,9 @@ exports.group = group;
  * Saves state for current action, the state can only be retrieved by this action's post job execution.
  *
  * @param     name     name of the state to store
- * @param     value    value to store
+ * @param     value    value to store. Non-string values will be converted to a string via JSON.stringify
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function saveState(name, value) {
     command_1.issueCommand('save-state', { name }, value);
 }
@@ -28469,18 +28687,19 @@ function sliceInput(rawText) {
     let slicesResult = []
     let currentParameters = rawText
     let snippet = null
-
-    while ((snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-]+\s*[a-zA-Z1-9-]*)/g.exec(currentParameters))) {
-        if (snippet.groups.paramValue) {
-            slicesResult.push(snippet.groups.paramValue.trim())
-            currentParameters = currentParameters.replace(snippet.groups.paramValue, '')
-        }
-    }
-
-    return slicesResult
+	
+	while( ( snippet = /(?:,\s?)*(?<paramValue>[a-zA-Z1-9-]+\s*[a-zA-Z1-9-]*)/g.exec( currentParameters ) ) ) {
+		if( snippet.groups.paramValue ) {
+			slicesResult.push( snippet.groups.paramValue.trim() )
+			currentParameters = currentParameters.replace( snippet.groups.paramValue, '' )
+		}
+	}
+	
+	return slicesResult
 }
 
-module.exports = sliceInput
+module.exports.sliceInput = sliceInput
+
 
 /***/ }),
 /* 544 */,
@@ -40391,7 +40610,100 @@ function createConnectionSSL (port, host, options) {
 /* 796 */,
 /* 797 */,
 /* 798 */,
-/* 799 */,
+/* 799 */
+/***/ (function(module, __unusedexports, __webpack_require__) {
+
+const core   = __webpack_require__( 470 )
+const github = __webpack_require__( 469 )
+
+async function handleGHUpdate( issueToUpdate, jiraIssues, DEBUG ) {
+	const repoToken          = core.getInput( 'GITHUB_TOKEN', { required: true } )
+	const ghForceCreateLabel = core.getInput( 'FORCE_CREATION_LABEL' )
+	
+	const ghClient = new github.GitHub( repoToken )
+	
+	const arrLabelsWithoutForceCreate = issueToUpdate.details.labels.reduce( ( accumulatedLabels, currentLabel ) => {
+		if( currentLabel.name !== ghForceCreateLabel ) {
+			accumulatedLabels.push( currentLabel.name )
+		}
+		return accumulatedLabels
+	}, [] )
+	if( arrLabelsWithoutForceCreate.length <= 0 ) {
+		console.log( '-- nothing to update in GITHUB' )
+		return
+	}
+	
+	//making sure we don't have any label already
+	const arrUniqueLabelsFromJiraIssues = jiraIssues.filter( currentIssue => !arrLabelsWithoutForceCreate.includes(
+		currentIssue.key ) )
+	if( arrUniqueLabelsFromJiraIssues.length <= 0 ) {
+		console.log( '-- all stories are already in the labels for this issue, nothing to update in GITHUB' )
+		return
+	}
+	
+	const arrLabelsFromJiraKeyToAdd = arrUniqueLabelsFromJiraIssues.map( currentJiraIssue => ( currentJiraIssue.key ) )
+	for( const currentJiraIssue of arrUniqueLabelsFromJiraIssues ) {
+		console.log( `-- checking label ${ currentJiraIssue.key } exist in repo` )
+		await createLabelIfNotExist( ghClient,
+									 issueToUpdate.repository.owner.login,
+									 issueToUpdate.repository.name,
+									 currentJiraIssue.key,
+									 currentJiraIssue.parentTitle )
+	}
+	
+	const arrFinalLabels = [ ...arrLabelsWithoutForceCreate, ...arrLabelsFromJiraKeyToAdd ]
+	
+	DEBUG( arrFinalLabels )
+	console.log( `-- update GITHUB issue ${ issueToUpdate.details.number }` )
+	
+	const updateStatus = await ghClient.issues.update( {
+														   owner:        issueToUpdate.repository.owner.login,
+														   repo:         issueToUpdate.repository.name,
+														   issue_number: issueToUpdate.details.number,
+														   labels:       arrFinalLabels,
+													   } )
+	DEBUG( updateStatus )
+	console.log( '- finishing sync with GITHUB' )
+}
+
+async function createLabelIfNotExist( ghClient, loginRepoOwner, nameRepo, nameLabel, parentTitle ) {
+	try {
+		await ghClient.issues.getLabel( {
+											owner: loginRepoOwner,
+											repo:  nameRepo,
+											name:  nameLabel,
+										} )
+		console.log( `--- label ${ nameLabel } exists already, we just add it to the issue` )
+	}
+	catch( error ) {
+		if( error.status === 404 ) {
+			console.log( `--- creating label ${ nameLabel }` )
+			
+			const labelToCreate = {
+				owner: loginRepoOwner,
+				repo:  nameRepo,
+				name:  nameLabel,
+				color: randomHexaColor(),
+			}
+			
+			if( parentTitle ) { labelToCreate.description = parentTitle }
+			
+			await ghClient.issues.createLabel( labelToCreate )
+		}
+		else {
+			throw error
+		}
+	}
+}
+
+function randomHexaColor() {
+	return "000000".replace( /0/g, () => { return ( ~~( Math.random() * 16 ) ).toString( 16 ) } )
+}
+
+module.exports.handleGHUpdate = handleGHUpdate
+
+
+/***/ }),
 /* 800 */,
 /* 801 */,
 /* 802 */,

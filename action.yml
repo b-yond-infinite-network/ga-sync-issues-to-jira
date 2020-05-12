@@ -34,13 +34,25 @@ inputs:
     required: true
     default: 'To Do'
   SUBTASK_MODE:
-    description: 'Should we attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
+    description: 'attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
     required: true
     default: true
+  EPIC_MODE:
+    description: 'link in JIRA to the Epic of the labelled story/task we attach to in subtask mode OR, in non-subtask mode, attach to the Epic labelled and create a new JIRA_ISSUETYPE_NAME if it does not exist in the labelled Epic'
+    required: true
+    default: false
   ASSIGNEE_PUSH:
     description: 'Whether we want to extract and push the first assignee email as found in GITHUB into the assignee field in JIRA'
     required: true
     default: false
+  FORCE_CREATION_LABEL:
+    description: 'The label to use when you want to force the creation of the issue in JIRA and have the created story as label in GITHUB'
+    required: true
+    default: CREATE-IN-JIRA
+  OWN_LABEL:
+    description: 'The label to use when you want to force the up sync to a specific JIRA story, independently of title, and other properties'
+    required: true
+    default: own
   DEBUG_MODE:
     description: 'Should log as many info as possible'
     required: true

@@ -152,7 +152,7 @@ Feature: Synchronization of fields and states
     When a 'opened' action triggers
     Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-555"' and 'Updating JIRA Issue: "TEST-456"' in the logs and exit successfully
 
-  Scenario: Multi-IssueType action with just one project ignore the other Issue Type
+  Scenario: Multi-Issue Type action with just one project ignore the other Issue Type
     Given The action is configured with project 'TEST', issue type 'Subtask, Sub-Task' and label 'TEST-123'
     And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
     And the title is now set to 'A new title' in GITHUB
@@ -160,10 +160,46 @@ Feature: Synchronization of fields and states
     When a 'opened' action triggers
     Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"summary":"A new title"' in the logs and exit successfully
 
-  Scenario: Multi-IssueType action
+  Scenario: Multi-Issue Type action
     Given The action is configured with project 'TEST, TEST2, TEST4', issue type 'Subtask, Sub-task' and label 'TEST-123'
     And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
     And the title is now set to 'A new title' in GITHUB
     And the summary was set to 'An old title' in JIRA
     When a 'opened' action triggers
     Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and 'Creating JIRA Issue of type : "Sub-task" with title: A JIRA subtask' in the logs and exit successfully
+
+  Scenario: Subtask mode off create a Story if one doesnt exist already
+    Given The action is configured with project 'TEST', issue type 'Story' and label 'TEST-456'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers with SUBTASK_MODE OFF
+    Then we upgrade JIRA, write 'Adding own-ed JIRA Issue TEST-456 to the list of JIRA Issues to upgrade' and 'Updating JIRA Issue: "TEST-456"' in the logs and exit successfully
+
+  Scenario: Epic mode on ensure the Epic field is synched
+    Given The action is configured with project 'TEST', issue type 'Story' and label 'TEST-456'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers with EPIC_MODE ON
+    Then we upgrade JIRA, write '--- updated with: ' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
+
+  Scenario: Epic mode on non sub-task mode ensure the Epic field is synched from the current pushed story
+    Given The action is configured with project 'TEST', issue type 'Story' and label 'TEST-456'
+    And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
+    And the title is now set to 'A new title' in GITHUB
+    And the summary was set to 'An old title' in JIRA
+    When a 'opened' action triggers with SUBTASK_MODE OFF and EPICMODE ON
+    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
+
+  Scenario: CREATE-IN-JIRA label create a subtask in JIRA and then sync back the label into GITHUB
+    Given The action is configured with project 'TEST', issue type 'Subtask' and label 'CREATE-IN-JIRA'
+    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
+    When the action triggers
+    Then we upgrade JIRA, write 'Creating JIRA Issue of type : "Subtask" with title: A new JIRA story' and '-- update GITHUB issue 10' in the logs and exit successfully
+
+#  Scenario: CREATE-IN-JIRA label with SUBTASK_MODE OFF create a story in JIRA and then sync back the label into GITHUB
+#    Given The action is configured with project 'TEST', issue type 'Story' and label 'CREATE-IN-JIRA'
+#    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
+#    When a 'opened' action triggers with SUBTASK_MODE OFF
+#    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully

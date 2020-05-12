@@ -5,11 +5,11 @@ const captureConsole = new CaptureConsole()
 
 const { Before, After, Given, When, Then, And, Fusion } = require( 'jest-cucumber-fusion' )
 
-const { mockGHActionsIssue, mockNonGHActionsIssue }     = require( '../helper/mockGH-actions' )
-let actionProjectName   = 'BLA'
-let actionIssueType     = 'Subtask'
-let overloadGITHUBValues= null
-let overloadJIRAValues	= null
+const { mockGHActionsIssue, mockGHActionsIssueWithModes, mockGHAPI } = require( '../helper/mockGH-actions' )
+let actionProjectName                                                = 'BLA'
+let actionIssueType                                                  = 'Subtask'
+let overloadGITHUBValues                                             = null
+let overloadJIRAValues                                               = null
 
 
 const { mockJIRACalls, unmockJIRACalls }     = require( '../helper/mockJIRA-api' )
@@ -94,6 +94,9 @@ And( /^there's no assignee$/, () => {} )
 
 When( /^the action triggers$/,  async (  ) => {
 	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
 	await mockGHActionsIssue( 'opened',
 							  actionProjectName,
 							  actionIssueType,
@@ -101,20 +104,55 @@ When( /^the action triggers$/,  async (  ) => {
 							  jiraUserEmail,
 							  jiraApiToken,
 							  overloadGITHUBValues )
-})
+} )
 
-When( /^a '(.*)' action triggers$/,  async ( actionStatus ) => {
+When( /^a '(.*)' action triggers$/, async ( actionStatus ) => {
 	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
-	await mockGHActionsIssue( actionStatus,
-							  actionProjectName,
-							  actionIssueType,
-							  jiraBaseURL,
-							  jiraUserEmail,
-							  jiraApiToken,
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssue( actionStatus, actionProjectName, actionIssueType,
+							  jiraBaseURL, jiraUserEmail, jiraApiToken,
 							  overloadGITHUBValues )
-})
+} )
 
-Then(/^we upgrade JIRA, write '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
+When( /^a '(.*)' action triggers with SUBTASK_MODE OFF$/, async ( actionStatus ) => {
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+									   jiraBaseURL, jiraUserEmail, jiraApiToken,
+									   false, false, false, false,
+									   'CREATE-IN-JIRA', 'own',
+									   overloadGITHUBValues )
+} )
+
+When( /^a '(.*)' action triggers with EPIC_MODE ON$/, async ( actionStatus ) => {
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+									   jiraBaseURL, jiraUserEmail, jiraApiToken,
+									   false, true, true, false,
+									   'CREATE-IN-JIRA', 'own',
+									   overloadGITHUBValues )
+} )
+
+When( /^a '(.*)' action triggers with SUBTASK_MODE OFF and EPICMODE ON$/, async ( actionStatus ) => {
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+									   jiraBaseURL, jiraUserEmail, jiraApiToken,
+									   false, false, true, false,
+									   'CREATE-IN-JIRA', 'own',
+									   overloadGITHUBValues )
+} )
+
+Then( /^we upgrade JIRA, write '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
 	captureConsole.startCapture()
 	const consoleLogsOutput = mockLog()
 	

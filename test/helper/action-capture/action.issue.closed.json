@@ -32,5 +32,11 @@
     "title": "A JIRA subtask",
     "updated_at": "2020-01-07T22:10:06Z",
     "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1"
+  },
+  "repository": {
+    "name": "ga-sync-issues-to-jira",
+    "owner": {
+      "login": "b-yond-infinite-network"
+    }
   }
 }

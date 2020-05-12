@@ -31,15 +31,21 @@
     "state" : "open",
     "title": "A JIRA subtask",
     "updated_at" : "2020-01-05T22:30:44Z",
-    "url" : "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1"
+    "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1"
   },
-  "label" : {
-    "color" : "db83b8",
-    "default" : false,
-    "description" : "",
-    "id" : 1770082857,
-    "name" : "subTEST-555",
-    "node_id" : "MDU6TGFiZWwxNzcwMDgyODU3",
-    "url" : "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/subTEST-5"
+  "label": {
+    "color": "db83b8",
+    "default": false,
+    "description": "",
+    "id": 1770082857,
+    "name": "subTEST-555",
+    "node_id": "MDU6TGFiZWwxNzcwMDgyODU3",
+    "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/subTEST-5"
+  },
+  "repository": {
+    "name": "ga-sync-issues-to-jira",
+    "owner": {
+      "login": "b-yond-infinite-network"
+    }
   }
 }

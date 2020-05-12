@@ -22,15 +22,21 @@
         "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TES-2"
       }
     ],
-    "labels_url" : "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1/labels{/name}",
-    "locked" : false,
-    "milestone" : null,
-    "node_id" : "MDU6SXNzdWU1MTM1NzQ0NTI=",
-    "number" : 1,
-    "repository_url" : "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira",
-    "state" : "open",
+    "labels_url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1/labels{/name}",
+    "locked": false,
+    "milestone": null,
+    "node_id": "MDU6SXNzdWU1MTM1NzQ0NTI=",
+    "number": 1,
+    "repository_url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira",
+    "state": "open",
     "title": "A JIRA subtask",
-    "updated_at" : "2020-01-07T04:59:06Z",
-    "url" : "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1"
+    "updated_at": "2020-01-07T04:59:06Z",
+    "url": "https://api.github.com/repos/b-yond-infinite-network/ga-sync-issues-to-jira/issues/1"
+  },
+  "repository": {
+    "name": "ga-sync-issues-to-jira",
+    "owner": {
+      "login": "b-yond-infinite-network"
+    }
   }
 }

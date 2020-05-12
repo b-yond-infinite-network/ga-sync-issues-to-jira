@@ -1,4 +1,4 @@
-const sliceInput = require( '../src/utils' )
+const { sliceInput } = require( '../src/utils' )
 
 describe("Slice Input function", () => {
     

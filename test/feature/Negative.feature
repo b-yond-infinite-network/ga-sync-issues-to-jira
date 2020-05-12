@@ -77,3 +77,11 @@ Feature: Negative testing
     And the issue in GITHUB has the same title, body and comments than issue 'TEST-456' in JIRA
     When the action is triggered on an opened issue
     Then we finish the action successfully and write '-- all fields are synced between issue #' as an info in the logs
+
+  Scenario: Debug mode work
+    Given I specify project 'TEST'
+    And my JIRA credentials are correct
+    And the label is ownTEST-456
+    And the issue in GITHUB has the same title, body and comments than issue 'TEST-456' in JIRA
+    When the action is triggered with DEBUG_MODE ON
+    Then we do nothing, skip the action, exit successfully and write '<<<<DEBUG----' as a warning in the logs

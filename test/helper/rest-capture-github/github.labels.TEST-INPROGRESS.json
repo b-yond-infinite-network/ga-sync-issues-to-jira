@@ -1,0 +1,9 @@
+{
+  "id": 208045946,
+  "node_id": "MDU6TGFiZWwyMDgwNDU5NDY=",
+  "url": "https://api.github.com/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TEST-INPROGRESS",
+  "name": "TEST-INPROGRESS",
+  "description": "Jira",
+  "color": "f29513",
+  "default": true
+}

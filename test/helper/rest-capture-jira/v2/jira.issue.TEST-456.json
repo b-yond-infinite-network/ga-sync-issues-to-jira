@@ -48,6 +48,7 @@
         "16x16": "https://fakejira/secure/projectavatar?size=xsmall&s=xsmall&pid=13036&avatarId=11423",
         "32x32": "https://fakejira/secure/projectavatar?size=medium&s=medium&pid=13036&avatarId=11423"
       }
-    }
+    },
+    "customfield_10017": "TEST-123EPIC"
   }
 }
