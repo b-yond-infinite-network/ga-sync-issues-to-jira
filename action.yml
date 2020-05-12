@@ -1,6 +1,10 @@
 name: 'JiraTaskSync'
 description: 'Sync GITHUB Issues with JIRA Tasks (or Subtasks)'
 inputs:
+  GITHUB_TOKEN:
+    description: 'The token (should be a secret) to sync back information to Github'
+    required: true
+    default: null
   JIRA_BASEURL:
     description: 'hostname to connect to Jira (do not add https://)'
     required: true

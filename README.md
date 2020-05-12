@@ -31,9 +31,13 @@ jobs:
           JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
           JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
           JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
+          GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
 ```
 As you can see, this action supports Github Secrets.
-We always advise all credential to be protected using this, [simply follow this Github documentation](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+The GITHUB_TOKEN secret is automatically provided by Github, so you don't need to add it manually, 
+just put that configuration as shown here
+For the rest, we always advise all credential to be protected using this, [simply follow this Github documentation](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+
 
 You can find the complete list of options [for the action here](action.yml)
 
@@ -50,6 +54,7 @@ For all options, you can customize them in your workflow configuration by adding
           JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
           JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
           SUBTASK_MODE:     false
+          GITHUB_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
 ```
 In this configuration, the synchronization will be triggered for each Issue change (opening, editing...) and every JIRA 
 Issue tagged in the GITHUB Issue label will be replaced by the information from Github (non-Subtask mode)

@@ -20,4 +20,5 @@ jobs:
           JIRA_APITOKEN:        ${{ secrets.JIRA_APITOKEN }}
           JIRA_DEFAULT_PARENT:  OS-12
           JIRA_DEFAULT_EPIC:    OS-10
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
           DEBUG_MODE:           true
