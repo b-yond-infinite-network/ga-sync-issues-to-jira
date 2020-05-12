@@ -89,12 +89,12 @@ finding the subtask with the same title inside the list of subtask of the labell
 > - check the story with the key (abbreviation) OS-113
 > - retrieve the list of subtask
 > - check if a subtask with the title of our Issue in Github exist, if not create it
-> - push all the compatible information in JIRA (summary, description, epic link, status)
+> - push all the compatible information in JIRA (summary, description, epic link, status) to that subtask of OS-113
 
 There's also some parameter that you can configure to adapt to your particular JIRA setup or make exceptions:
-- the JIRA status match with Github Issue status ([see STATUS](#Status matching)) 
+- the JIRA status match with Github Issue status ([see STATUSES](#statuses)) 
 
-- the bypasses ([see Bypasses](#Bypasses))
+- the bypasses ([see BYPASSES](#bypasses))
 
 - EPIC_MODE: by activating this mode, all "Epic Link" will also be synchronised for Bypassed non-subtask Issues 
 using the Parent information
@@ -124,9 +124,9 @@ This action will take care of the Issue in JIRA with the key (abbreviation) spec
 > - push all the compatible information in JIRA (summary, description, epic link, status) to OS-113
 
 There's also some parameter that you can configure to adapt to your particular JIRA setup or make exceptions:
-- the JIRA status match with Github Issue status ([see STATUS](#Status matching)) 
+- the JIRA status match with Github Issue status ([see STATUSES](#statuses)) 
 
-- the bypasses ([see Bypasses](#Bypasses))
+- the bypasses ([see BYPASSES](#bypasses))
 
 - EPIC_MODE: by activating this mode, all "Epic Link" will also be synchronised using the Parent information 
 or JIRA_DEFAULT_EPIC for newly created JIRA Issues using the FORCE_CREATION_LABEL
@@ -151,32 +151,28 @@ To be able to manage the synchronisation of your Github Issue status correctly i
 
 
 
-# ESSENTIAL PARAMETERS 
-Here are the **required** parameters to start
+# IMPORTANT PARAMETERS 
+Here are some of the parameters you should review the value of
 
-#### **JIRA_BASEURL**
-##### The hostname to connect to JIRA (do not add https://). 
+#### **JIRA_BASEURL** => The hostname to connect to JIRA (do not add https://). 
 > It will often finish by '.atlassian.net' and should be the same that you're using while accessing JIRA using your browser.
 > 
 > Example value `mycompany.atlassian.net`.
 
 
-#### **JIRA_USEREMAIL**
-##### This is the login/email you're using to connect to JIRA. 
+#### **JIRA_USEREMAIL** => This is the login/email you're using to connect to JIRA. 
 > _This action only support User API Token._ 
 > Value should be the login you're using to log in JIRA.
 
 
-#### **JIRA_APITOKEN**
-##### This is JIRA User API Token itself. 
+#### **JIRA_APITOKEN** => This is JIRA User API Token itself. 
 > **_This action only support User API Token._**  
 > You can manage your API Tokens in JIRA [using this page](https://id.atlassian.com/manage/api-tokens)
 > 
 > Value should be a weird string of character.
 
 
-#### **JIRA_PROJECTKEY**:
-##### This is JIRA Project key. 
+#### **JIRA_PROJECTKEY** => This is JIRA Project key. 
 > This will tell the action in which project in JIRA to synchronize the issues into. 
 > Value should be a JIRA project _**Key**_ (like `PRO`, `TES`...), not a JIRA project name
 > 
@@ -184,8 +180,7 @@ Here are the **required** parameters to start
 >
 >   ``JIRA_PROJET: PROJECT_KEYNAME, OTHERPROJECT_KEYNAME, THIRDPROJECT_KEYNAME``
 
-#### **JIRA_ISSUETYPE_NAME**:
-##### This is JIRA Project key. 
+#### **JIRA_ISSUETYPE_NAME** => This is JIRA Project key. 
 > This is the name of the Issue Type we will be using to push our issue information in JIRA. 
 > The default value (`Subtask`) is valid for modern Agile project in JIRA. For old ones, you may want to specify `Sub-task`
 > 
