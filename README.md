@@ -132,7 +132,7 @@ There's also some parameter that you can configure to adapt to your particular J
 or JIRA_DEFAULT_EPIC for newly created JIRA Issues using the FORCE_CREATION_LABEL
     > BEWARE: Epic Link will have to exist in JIRA for this to work
 
-#BYPASSES
+# BYPASSES
 - OWN_LABEL: a prefix that you can use in your label in Github to force the update of a specific JIRA Issue (subtask or not) directly
 
 - FORCE_CREATION_LABEL: a special label you can use to force the creation of a new Issue in JIRA. 
@@ -141,7 +141,7 @@ or JIRA_DEFAULT_EPIC for newly created JIRA Issues using the FORCE_CREATION_LABE
   - **SUBTASK_MODE OFF**, force the creation of an Issue, no JIRA_DEFAULT_PARENT need to be set
  
 
-#STATUSES
+# STATUSES
 To be able to manage the synchronisation of your Github Issue status correctly in JIRA, you will have to match their difference "name".
 - JIRA_STATE_TODO: this is the status in JIRA that will be matched against the "reopened" status in Github
 
