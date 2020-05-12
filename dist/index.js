@@ -4604,7 +4604,7 @@ async function syncJiraWithGH() {
         
         //we sync back to GITHUB
         console.log( `Syncing back to GITHUB` )
-        await handleGHUpdate( issueEventTriggered, arrSubtasksOrIssuesToUpdate, DEBUG )
+        await handleGHUpdate( issueEventTriggered, arrSubtasksOrIssuesToUpdate, useSubtaskMode, DEBUG )
         
         console.log( `==> action success` )
         console.log( `Action Finished` )
@@ -40634,9 +40634,10 @@ function createConnectionSSL (port, host, options) {
 const core   = __webpack_require__( 470 )
 const github = __webpack_require__( 469 )
 
-async function handleGHUpdate( issueToUpdate, jiraIssues, DEBUG ) {
-	const repoToken          = core.getInput( 'GITHUB_TOKEN', { required: true } )
-	const ghForceCreateLabel = core.getInput( 'FORCE_CREATION_LABEL' )
+async function handleGHUpdate( issueToUpdate, jiraIssues, useSubtaskMode, DEBUG ) {
+	const repoToken          	= core.getInput( 'GITHUB_TOKEN', { required: true } )
+	const ghOwn 				= core.getInput( 'OWN_LABEL' )
+	const ghForceCreateLabel 	= core.getInput( 'FORCE_CREATION_LABEL' )
 	
 	const ghClient = new github.GitHub( repoToken )
 	
@@ -40650,15 +40651,17 @@ async function handleGHUpdate( issueToUpdate, jiraIssues, DEBUG ) {
 		console.log( `--- no other label than the one we're adding` )
 	}
 	
-	//making sure we don't have any label already
-	const arrUniqueLabelsFromJiraIssues = jiraIssues.filter( currentIssue => !arrLabelsWithoutForceCreate.includes(
-		currentIssue.key ) )
+	//making sure we don't have any of those label already
+	const arrUniqueLabelsFromJiraIssues = jiraIssues.filter( currentIssue => ( !arrLabelsWithoutForceCreate.includes(
+		currentIssue.key ) && !arrLabelsWithoutForceCreate.includes( ghOwn + currentIssue.key ) ) )
 	if( arrUniqueLabelsFromJiraIssues.length <= 0 ) {
 		console.log( '-- all stories are already in the labels for this issue, nothing to update in GITHUB' )
 		return
 	}
 	
-	const arrLabelsFromJiraKeyToAdd = arrUniqueLabelsFromJiraIssues.map( currentJiraIssue => ( currentJiraIssue.key ) )
+	const arrLabelsFromJiraKeyToAdd = arrUniqueLabelsFromJiraIssues.map( currentJiraIssue => ( useSubtaskMode
+																							   ? ghOwn + currentJiraIssue.key
+																							   : currentJiraIssue.key ) )
 	for( const currentJiraIssue of arrUniqueLabelsFromJiraIssues ) {
 		console.log( `-- checking label ${ currentJiraIssue.key } exist in repo` )
 		await createLabelIfNotExist( ghClient,

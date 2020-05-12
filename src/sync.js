@@ -41,7 +41,7 @@ async function syncJiraWithGH() {
         
         //we sync back to GITHUB
         console.log( `Syncing back to GITHUB` )
-        await handleGHUpdate( issueEventTriggered, arrSubtasksOrIssuesToUpdate, DEBUG )
+        await handleGHUpdate( issueEventTriggered, arrSubtasksOrIssuesToUpdate, useSubtaskMode, DEBUG )
         
         console.log( `==> action success` )
         console.log( `Action Finished` )
