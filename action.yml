@@ -33,6 +33,14 @@ inputs:
     description: 'the JIRA transition name in JIRA equivalent to GITHUB open/reopened (To Do)'
     required: true
     default: 'To Do'
+  JIRA_DEFAULT_PARENT:
+    description: 'A default parent JIRA Issue to attach new subtask to (in Subtask mode)'
+    required: true
+    default: null
+  JIRA_DEFAULT_EPIC:
+    description: 'A default JIRA Epic to link new Issues to (in Epic Mode and Subtask mode)'
+    required: true
+    default: null
   SUBTASK_MODE:
     description: 'attach in JIRA to the labelled story/task as a subtask of the specified JIRA_ISSUETYPE_NAME or replace the story/task itself with GITHUB data'
     required: true

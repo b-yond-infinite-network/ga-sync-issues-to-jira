@@ -14,8 +14,10 @@ jobs:
     steps:
       - uses: b-yond-infinite-network/ga-sync-issues-to-jira@master
         with:
-          JIRA_PROJECTKEY:  OS
-          JIRA_BASEURL:     ${{ secrets.JIRA_BASEURL }}
-          JIRA_USEREMAIL:   ${{ secrets.JIRA_USEREMAIL }}
-          JIRA_APITOKEN:    ${{ secrets.JIRA_APITOKEN }}
-          DEBUG_MODE:       true
+          JIRA_PROJECTKEY:      OS
+          JIRA_BASEURL:         ${{ secrets.JIRA_BASEURL }}
+          JIRA_USEREMAIL:       ${{ secrets.JIRA_USEREMAIL }}
+          JIRA_APITOKEN:        ${{ secrets.JIRA_APITOKEN }}
+          JIRA_DEFAULT_PARENT:  OS-12
+          JIRA_DEFAULT_EPIC:    OS-10
+          DEBUG_MODE:           true

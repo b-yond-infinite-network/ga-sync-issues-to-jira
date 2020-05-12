@@ -173,7 +173,7 @@ Feature: Synchronization of fields and states
     And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
     And the title is now set to 'A new title' in GITHUB
     And the summary was set to 'An old title' in JIRA
-    When a 'opened' action triggers with SUBTASK_MODE OFF
+    When an action is triggered with SUBTASK_MODE OFF
     Then we upgrade JIRA, write 'Adding own-ed JIRA Issue TEST-456 to the list of JIRA Issues to upgrade' and 'Updating JIRA Issue: "TEST-456"' in the logs and exit successfully
 
   Scenario: Epic mode on ensure the Epic field is synched
@@ -181,7 +181,7 @@ Feature: Synchronization of fields and states
     And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
     And the title is now set to 'A new title' in GITHUB
     And the summary was set to 'An old title' in JIRA
-    When a 'opened' action triggers with EPIC_MODE ON
+    When an action is triggered with EPIC_MODE ON
     Then we upgrade JIRA, write '--- updated with: ' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
 
   Scenario: Epic mode on non sub-task mode ensure the Epic field is synched from the current pushed story
@@ -189,7 +189,7 @@ Feature: Synchronization of fields and states
     And the change is set on 'title' with a from value of 'A JIRA subtask' in GITHUB
     And the title is now set to 'A new title' in GITHUB
     And the summary was set to 'An old title' in JIRA
-    When a 'opened' action triggers with SUBTASK_MODE OFF and EPICMODE ON
+    When an action is triggered with SUBTASK_MODE OFF and EPICMODE ON
     Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
 
   Scenario: CREATE-IN-JIRA label create a subtask in JIRA and then sync back the label into GITHUB
@@ -203,3 +203,21 @@ Feature: Synchronization of fields and states
 #    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
 #    When a 'opened' action triggers with SUBTASK_MODE OFF
 #    Then we upgrade JIRA, write 'Updating JIRA Issue: "TEST-456"' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
+
+  Scenario: Use JIRA_DEFAULT_PARENT in SUBTASK_MODE when FORCE_CREATE is used
+    Given The action is configured with project 'TEST', issue type 'Subtask' and label 'CREATE-IN-JIRA'
+    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
+    When the action triggers with JIRA_DEFAULT_PARENT as TEST-123
+    Then we upgrade JIRA, write 'Adding own-ed JIRA Issue CREATE-IN-JIRA to the list of JIRA Issues to upgrade' and 'Creating JIRA Issue of type : "Subtask" with title: A new JIRA story and parent TEST-123' in the logs and exit successfully
+
+  Scenario: Use JIRA_DEFAULT_EPIC in EPIC_MODE when FORCE_CREATE is used
+    Given The action is configured with project 'TEST', issue type 'Story' and label 'CREATE-IN-JIRA'
+    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
+    When the action triggers with JIRA_DEFAULT_EPIC as TEST-123EPIC and EPIC_MODE is on
+    Then we upgrade JIRA, write 'Creating JIRA Issue of type : "Story" with title: A new JIRA story and parent null' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully
+
+  Scenario: Use JIRA_DEFAULT_EPIC in EPIC_MODE and JIRA_DEFAULT_PARENT in SUBTASK_MODE when FORCE_CREATE is used
+    Given The action is configured with project 'TEST', issue type 'Story' and label 'CREATE-IN-JIRA'
+    And the change is set on 'title' with a from value of 'A new JIRA story' in GITHUB
+    When the action triggers with EPIC_MODE and SUBTASK MODE on, JIRA_DEFAULT_EPIC as TEST-123EPIC, and JIRA_DEFAULT_PARENT as TEST-123
+    Then we upgrade JIRA, write 'Creating JIRA Issue of type : "Story" with title: A new JIRA story and parent TEST-123' and '"customfield_10017":"TEST-123EPIC"' in the logs and exit successfully

@@ -8,7 +8,8 @@ const fileAccess = util.promisify( fs.access )
 
 
 function setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
-                                    modeDebug, modeSubtask, modeEpic, modeAssigneePush, labelForceCreate, labelOwn,
+                                    modeDebug, modeSubtask, modeEpic, modeAssigneePush,
+                                    labelForceCreate, labelOwn, defaultParent, defaultEpic,
                                     payloadToLoad ) {
     // ACTION PROPERTIES
     process.env[ 'INPUT_GITHUB_TOKEN' ]          = 'MDU6SXNzdWU1MTM1NzQ0NTI='
@@ -18,22 +19,16 @@ function setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUse
     process.env[ 'INPUT_ASSIGNEE_PUSH' ]         = modeAssigneePush
     process.env[ 'INPUT_FORCE_CREATION_LABEL' ]  = labelForceCreate
     process.env[ 'INPUT_OWN_LABEL' ]             = labelOwn
-    // the key (prefix) used by Jira for the project
     process.env[ 'INPUT_JIRA_PROJECTKEY' ]       = jiraKey
-    // the issue type to use to track the Github Issues
     process.env[ 'INPUT_JIRA_ISSUETYPE_NAME' ]   = jiraIssueType
-    // hostname to connect to Jira (do not add https://)
     process.env[ 'INPUT_JIRA_BASEURL' ]          = jiraBaseURL
-    // user email/login address to use the token of
     process.env[ 'INPUT_JIRA_USEREMAIL' ]        = jiraUserEmail
-    // token to use to connect to Jira
     process.env[ 'INPUT_JIRA_APITOKEN' ]         = jiraApiToken
-    // transition name in JIRA equivalent to GITHUB assigned (In Progress)
     process.env[ 'INPUT_JIRA_STATE_INPROGRESS' ] = "In Progress"
-    // transition name in JIRA equivalent to GITHUB closed (Done)
     process.env[ 'INPUT_JIRA_STATE_DONE' ]       = "Done"
-    // transition name in JIRA equivalent to GITHUB open/reopened (To Do)
     process.env[ 'INPUT_JIRA_STATE_TODO' ]       = "To Do"
+    process.env[ 'INPUT_JIRA_DEFAULT_PARENT' ]   = defaultParent
+    process.env[ 'INPUT_JIRA_DEFAULT_EPIC' ]     = defaultEpic
     
     process.env[ 'INPUT_REPO-TOKEN' ] = "FAKETOKEN"
     
@@ -45,7 +40,7 @@ function setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUse
 function setGAEnvironment( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken, payloadToLoad ) {
     setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
                                true, true, false, false,
-                               'CREATE-IN-JIRA', 'own',
+                               'CREATE-IN-JIRA', 'own', null, null,
                                payloadToLoad )
 }
 
@@ -60,21 +55,21 @@ function mockNonGHActionsIssue() {
 
 async function mockGHActionsIssueWithModes( gaActionChange, jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail,
                                             jiraApiToken,
-                                            modeDebug, modeSubtask, modeEpic, modeAssigneePush, labelForceCreate,
-                                            labelOwn,
+                                            modeDebug, modeSubtask, modeEpic, modeAssigneePush,
+                                            labelForceCreate, labelOwn, defaultParent, defaultEpic,
                                             overwriteContextPayloadValues ) {
     try {
         await fileAccess( __dirname + '/action-capture/action.issue.' + gaActionChange + '.json' )
         
         setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
                                    modeDebug, modeSubtask, modeEpic, modeAssigneePush,
-                                   'CREATE-IN-JIRA', 'own',
+                                   'CREATE-IN-JIRA', 'own', defaultParent, defaultEpic,
                                    'action-capture/action.issue.' + gaActionChange + '.json' )
     }
     catch( accessError ) {
         setGAEnvironmentWithModes( jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
                                    modeDebug, modeSubtask, modeEpic, modeAssigneePush,
-                                   'CREATE-IN-JIRA', 'own',
+                                   'CREATE-IN-JIRA', 'own', defaultParent, defaultEpic,
                                    'action-capture/action.issue.opened.json' )
     }
     
@@ -102,15 +97,11 @@ async function mockGHActionsIssue( gaActionChange, jiraKey, jiraIssueType, jiraB
     
     await mockGHActionsIssueWithModes( gaActionChange, jiraKey, jiraIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
                                        true, true, false, false,
-                                       'CREATE-IN-JIRA', 'own',
+                                       'CREATE-IN-JIRA', 'own', null, null,
                                        overwriteContextPayloadValues )
 }
 
 async function mockGHAPI( overrideForFiles ) {
-    // const nock = require( 'nock' )
-    // nock('https://api.github.com')
-    //     .get('/repos/b-yond-infinite-network/ga-sync-issues-to-jira/labels/TEST-555')
-    //     .reply(200, {})
     
     mockCalls( 'rest-capture-github/', 'github',
                'https://api.github.com', '/repos/b-yond-infinite-network/ga-sync-issues-to-jira/',

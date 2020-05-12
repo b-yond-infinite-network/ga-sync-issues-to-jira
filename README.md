@@ -54,8 +54,99 @@ For all options, you can customize them in your workflow configuration by adding
 In this configuration, the synchronization will be triggered for each Issue change (opening, editing...) and every JIRA 
 Issue tagged in the GITHUB Issue label will be replaced by the information from Github (non-Subtask mode)
 
+> Note: JIRA_PROJECTKEY is the abbreviated project name, it should be a maximum of 4 letters and is given by JIRA as 
+>a prefix to all story "number". Example: in a JIRA Story "OS-314", OS is the Project Key. 
 
-# Base parameters 
+# Modes
+This action allows 2 principal "modes" that change its behaviour
+
+
+### **Subtask mode ON** 
+In this mode, ***which is the default***, the issue information is created or updated in a "Subtask" 
+issue type in JIRA that will be attached to the **labelled parent**. 
+
+Subtask issue types are special in JIRA: they only exist attached to a parent non-subtask Issue. 
+This action allows you to specify the exact Issue Type that you want to use by setting the JIRA_ISSUETYPE_NAME (default is "Subtask").
+
+> **Note : ** As an example, "next-gen" project in JIRA use our current default "Subtask" but "classic" project have long 
+>used "Sub-task". So for you "classic" JIRA project, you will have to set JIRA_ISSUETYPE_NAME to "Sub-task" (with the hyphen)
+> 
+> ***Check your Issue Type configuration*** in your project to pick the Issue type you want to use. 
+> In JIRA: Project Setting > Issue Types
+
+In this mode, you label the issue with the key of the parent issue you want to attach to, this action will take care of
+finding the subtask with the same title inside the list of subtask of the labelled JIRA Issue.
+> Example: if you want to attach to the 113 "Issue" that is part of a JIRA Project "Open Source" that has a key 
+>(the abbreviation JIRA use) "OS", you will label your Github Issue with "OS-113".
+>
+> The action will then:
+> - connect to your JIRA instance
+> - check the story with the key (abbreviation) OS-113
+> - retrieve the list of subtask
+> - check if a subtask with the title of our Issue in Github exist, if not create it
+> - push all the compatible information in JIRA (summary, description, epic link, status)
+
+There's also some parameter that you can configure to adapt to your particular JIRA setup or make exceptions:
+- the JIRA status match with Github Issue status ([see STATUS](#Status matching)) 
+
+- the bypasses ([see Bypasses](#Bypasses))
+
+- EPIC_MODE: by activating this mode, all "Epic Link" will also be synchronised for Bypassed non-subtask Issues 
+using the Parent information
+    > BEWARE: Epic Link will have to exist in JIRA for this to work
+
+### **Subtask mode OFF** 
+In this mode, the issue information is created or updated directly in the labelled story. 
+
+If the labelled key doesn't exist in JIRA, a new JIRA Issue is create with the type specified in JIRA_ISSUETYPE_NAME.
+If it exists, the information in the JIRA Issue is immediatly **replaced** by the information in the Github Issue. 
+
+
+> **Note : ** Most project in JIRA use "Story" as the default Issue Type you want to use. 
+>You will have to set JIRA_ISSUETYPE_NAME to "Story" to allow the creation of a story in JIRA
+> 
+> ***Check your Issue Type configuration*** in your project to pick the Issue type you want to use. 
+> In JIRA: Project Setting > Issue Types
+
+In this mode, you label the issue with the key of the issue you want to replace the information of.
+This action will take care of the Issue in JIRA with the key (abbreviation) specified in the Github label.
+> Example: if you want to attach to the 113 "Story" that is part of a JIRA Project "Open Source" that has a key 
+>(the abbreviation JIRA use) "OS", you will label your issue with "OS-113" and configure JIRA_ISSUETYPE_NAME to "Story".
+>
+> The action will then:
+> - connect to your JIRA instance
+> - check the story with the key (abbreviation) OS-113
+> - push all the compatible information in JIRA (summary, description, epic link, status) to OS-113
+
+There's also some parameter that you can configure to adapt to your particular JIRA setup or make exceptions:
+- the JIRA status match with Github Issue status ([see STATUS](#Status matching)) 
+
+- the bypasses ([see Bypasses](#Bypasses))
+
+- EPIC_MODE: by activating this mode, all "Epic Link" will also be synchronised using the Parent information 
+or JIRA_DEFAULT_EPIC for newly created JIRA Issues using the FORCE_CREATION_LABEL
+    > BEWARE: Epic Link will have to exist in JIRA for this to work
+
+#BYPASSES
+- OWN_LABEL: a prefix that you can use in your label in Github to force the update of a specific JIRA Issue (subtask or not) directly
+
+- FORCE_CREATION_LABEL: a special label you can use to force the creation of a new Issue in JIRA. 
+  - **SUBTASK_MODE ON**, force the creation of a subtask and will require the JIRA_DEFAULT_PARENT to be set, 
+  otherwise JIRA will refuse the creation.
+  - **SUBTASK_MODE OFF**, force the creation of an Issue, no JIRA_DEFAULT_PARENT need to be set
+ 
+
+#STATUSES
+To be able to manage the synchronisation of your Github Issue status correctly in JIRA, you will have to match their difference "name".
+- JIRA_STATE_TODO: this is the status in JIRA that will be matched against the "reopened" status in Github
+
+- JIRA_STATE_INPROGRESS: this is the status in JIRA that will be matched when the Github Issue has an assignee 
+
+- JIRA_STATE_DONE: this is the status in JIRA that will be matched against the "closed" or "deleted" status in Github
+
+
+
+# ESSENTIAL PARAMETERS 
 Here are the **required** parameters to start
 
 #### **JIRA_BASEURL**

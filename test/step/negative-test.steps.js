@@ -114,7 +114,7 @@ When( /^the action is triggered with DEBUG_MODE ON$/, async () => {
     await mockGHActionsIssueWithModes( 'opened', actionProjectName,
                                        actionIssueType, jiraBaseURL, jiraUserEmail, jiraApiToken,
                                        true, false, true, false,
-                                       'CREATE-IN-JIRA', 'own',
+                                       'CREATE-IN-JIRA', 'own', null, null,
                                        overloadValues )
 } )
 

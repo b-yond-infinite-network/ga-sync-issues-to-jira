@@ -116,41 +116,79 @@ When( /^a '(.*)' action triggers$/, async ( actionStatus ) => {
 							  overloadGITHUBValues )
 } )
 
-When( /^a '(.*)' action triggers with SUBTASK_MODE OFF$/, async ( actionStatus ) => {
+When( /^an action is triggered with SUBTASK_MODE OFF$/, async () => {
 	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
 	
 	mockGHAPI()
 	
-	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+	await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
 									   jiraBaseURL, jiraUserEmail, jiraApiToken,
 									   false, false, false, false,
-									   'CREATE-IN-JIRA', 'own',
+									   'CREATE-IN-JIRA', 'own', null, null,
 									   overloadGITHUBValues )
 } )
 
-When( /^a '(.*)' action triggers with EPIC_MODE ON$/, async ( actionStatus ) => {
+When( /^an action is triggered with EPIC_MODE ON$/, async () => {
 	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
 	
 	mockGHAPI()
 	
-	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+	await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
 									   jiraBaseURL, jiraUserEmail, jiraApiToken,
 									   false, true, true, false,
-									   'CREATE-IN-JIRA', 'own',
+									   'CREATE-IN-JIRA', 'own', null, null,
 									   overloadGITHUBValues )
 } )
 
-When( /^a '(.*)' action triggers with SUBTASK_MODE OFF and EPICMODE ON$/, async ( actionStatus ) => {
+When( /^an action is triggered with SUBTASK_MODE OFF and EPICMODE ON$/, async () => {
 	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
 	
 	mockGHAPI()
 	
-	await mockGHActionsIssueWithModes( actionStatus, actionProjectName, actionIssueType,
+	await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
 									   jiraBaseURL, jiraUserEmail, jiraApiToken,
 									   false, false, true, false,
-									   'CREATE-IN-JIRA', 'own',
+									   'CREATE-IN-JIRA', 'own', null, null,
 									   overloadGITHUBValues )
 } )
+
+When( /^the action triggers with JIRA_DEFAULT_PARENT as TEST-123$/, async () => {
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
+									   jiraBaseURL, jiraUserEmail, jiraApiToken,
+									   false, true, false, false,
+									   'CREATE-IN-JIRA', 'own', 'TEST-123', null,
+									   overloadGITHUBValues )
+} )
+
+When( /^the action triggers with JIRA_DEFAULT_EPIC as TEST-123EPIC and EPIC_MODE is on$/, async () => {
+	mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+	
+	mockGHAPI()
+	
+	await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
+									   jiraBaseURL, jiraUserEmail, jiraApiToken,
+									   false, false, true, false,
+									   'CREATE-IN-JIRA', 'own', null, 'TEST-123EPIC',
+									   overloadGITHUBValues )
+} )
+
+When(
+	/^the action triggers with EPIC_MODE and SUBTASK MODE on, JIRA_DEFAULT_EPIC as TEST-123EPIC, and JIRA_DEFAULT_PARENT as TEST-123$/,
+	async () => {
+		mockJIRACalls( 'https://' + jiraBaseURL, jiraUserEmail, jiraApiToken, overloadJIRAValues )
+		
+		mockGHAPI()
+		
+		await mockGHActionsIssueWithModes( 'opened', actionProjectName, actionIssueType,
+										   jiraBaseURL, jiraUserEmail, jiraApiToken,
+										   false, true, true, false,
+										   'CREATE-IN-JIRA', 'own', 'TEST-123', 'TEST-123EPIC',
+										   overloadGITHUBValues )
+	} )
 
 Then( /^we upgrade JIRA, write '([^']*)' in the logs and exit successfully$/, async ( messageToFindInLogs ) => {
 	captureConsole.startCapture()
