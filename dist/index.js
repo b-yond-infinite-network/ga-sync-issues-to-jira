@@ -40647,8 +40647,7 @@ async function handleGHUpdate( issueToUpdate, jiraIssues, DEBUG ) {
 		return accumulatedLabels
 	}, [] )
 	if( arrLabelsWithoutForceCreate.length <= 0 ) {
-		console.log( '-- nothing to update in GITHUB' )
-		return
+		console.log( `--- no other label than the one we're adding` )
 	}
 	
 	//making sure we don't have any label already
@@ -40672,8 +40671,12 @@ async function handleGHUpdate( issueToUpdate, jiraIssues, DEBUG ) {
 	const arrFinalLabels = [ ...arrLabelsWithoutForceCreate, ...arrLabelsFromJiraKeyToAdd ]
 	
 	DEBUG( arrFinalLabels )
-	console.log( `-- update GITHUB issue ${ issueToUpdate.details.number }` )
+	if( arrFinalLabels.length <= 0 ) {
+		console.log( `--! nothing to update in GITHUB` )
+		return
+	}
 	
+	console.log( `-- update GITHUB issue ${ issueToUpdate.details.number }` )
 	const updateStatus = await ghClient.issues.update( {
 														   owner:        issueToUpdate.repository.owner.login,
 														   repo:         issueToUpdate.repository.name,
