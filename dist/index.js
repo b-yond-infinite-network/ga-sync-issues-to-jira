@@ -40635,9 +40635,9 @@ const core   = __webpack_require__( 470 )
 const github = __webpack_require__( 469 )
 
 async function handleGHUpdate( issueToUpdate, jiraIssues, useSubtaskMode, DEBUG ) {
-	const repoToken          	= core.getInput( 'GITHUB_TOKEN', { required: true } )
-	const ghOwn 				= core.getInput( 'OWN_LABEL' )
-	const ghForceCreateLabel 	= core.getInput( 'FORCE_CREATION_LABEL' )
+	const repoToken          = core.getInput( 'GITHUB_TOKEN', { required: true } )
+	const ghOwn              = core.getInput( 'OWN_LABEL' )
+	const ghForceCreateLabel = core.getInput( 'FORCE_CREATION_LABEL' )
 	
 	const ghClient = new github.GitHub( repoToken )
 	
@@ -40660,7 +40660,8 @@ async function handleGHUpdate( issueToUpdate, jiraIssues, useSubtaskMode, DEBUG 
 	}
 	
 	const arrLabelsFromJiraKeyToAdd = arrUniqueLabelsFromJiraIssues.map( currentJiraIssue => ( useSubtaskMode
-																							   ? ghOwn + currentJiraIssue.key
+																							   ? ghOwn +
+																								 currentJiraIssue.key
 																							   : currentJiraIssue.key ) )
 	for( const currentJiraIssue of arrUniqueLabelsFromJiraIssues ) {
 		console.log( `-- checking label ${ currentJiraIssue.key } exist in repo` )
