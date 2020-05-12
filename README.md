@@ -57,7 +57,7 @@ Issue tagged in the GITHUB Issue label will be replaced by the information from 
 > Note: JIRA_PROJECTKEY is the abbreviated project name, it should be a maximum of 4 letters and is given by JIRA as 
 >a prefix to all story "number". Example: in a JIRA Story "OS-314", OS is the Project Key. 
 
-# Modes
+# MODES
 This action allows 2 principal "modes" that change its behaviour
 
 
