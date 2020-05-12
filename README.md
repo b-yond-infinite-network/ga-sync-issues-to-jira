@@ -143,7 +143,7 @@ or JIRA_DEFAULT_EPIC for newly created JIRA Issues using the FORCE_CREATION_LABE
 
 # STATUSES
 To be able to manage the synchronisation of your Github Issue status correctly in JIRA, you will have to match their difference "name".
-- JIRA_STATE_TODO: this is the status in JIRA that will be matched against the "reopened" status in Github
+- JIRA_STATE_TODO: this is the status in JIRA that will be matched against the "opened" and "reopened" status in Github
 
 - JIRA_STATE_INPROGRESS: this is the status in JIRA that will be matched when the Github Issue has an assignee 
 
