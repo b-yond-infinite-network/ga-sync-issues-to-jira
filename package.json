@@ -32,7 +32,7 @@
     "jira-connector": "^2.16.1",
     "lodash": "latest",
     "md-to-adf": "^0.6.4",
-    "node-fetch": "^2.6.0"
+    "node-fetch": "^3.1.1"
   },
   "devDependencies": {
     "@aoberoi/capture-console": "^1.1.0",
